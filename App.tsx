@@ -4,10 +4,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, Chat, FunctionDeclaration, Type } from "@google/genai";
 
 // --- SVG Icons ---
-const SendIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-  </svg>
+const PaperPlaneIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+    </svg>
 );
 
 const PlusIcon = () => (
@@ -83,7 +83,12 @@ const App: React.FC = () => {
         } else {
             setApiKey(key);
             // FIX: Per guidelines, GoogleGenAI must be initialized with a named apiKey parameter.
-            memoizedGenAI.current = new GoogleGenAI({ apiKey: key });
+            // Proxing API requests through a custom domain to bypass regional blocks.
+            // A server must be set up at this address to forward requests to generativelanguage.googleapis.com.
+            memoizedGenAI.current = new GoogleGenAI({ 
+                apiKey: key,
+                apiEndpoint: "https://gemini-proxy.safarnameh24.com"
+            });
         }
     }, []);
 
@@ -92,7 +97,7 @@ const App: React.FC = () => {
         setIsFetchingHotels(true);
         setFetchError(null);
         try {
-            const response = await fetch("https://cps.safarnameh24.com/api/v1/hotel/hotels/chatbot/");
+            const response = await fetch("http://cps.safarnameh24.com/api/v1/hotel/hotels/chatbot/");
             if (!response.ok) {
                 throw new Error(`خطای شبکه: ${response.statusText}`);
             }
@@ -136,10 +141,13 @@ const App: React.FC = () => {
                     // Start fresh if all chats are older than a week
                     startNewChat();
                 }
+            } else {
+                startNewChat();
             }
         } catch (error) {
             console.error("Failed to load conversations from local storage:", error);
             localStorage.removeItem('conversations');
+            startNewChat();
         }
     }, []);
 
@@ -203,12 +211,13 @@ const App: React.FC = () => {
 
     const startNewChat = () => {
         const newId = `chat_${Date.now()}`;
-        setConversations(prev => [...prev, {
+        const newConversation: Conversation = {
             id: newId,
             title: 'گفتگوی جدید',
             messages: [],
             lastUpdated: Date.now(),
-        }]);
+        };
+        setConversations(prev => [...prev, newConversation]);
         setActiveChatId(newId);
     };
     
@@ -217,7 +226,11 @@ const App: React.FC = () => {
             const newConversations = conversations.filter(c => c.id !== id);
             setConversations(newConversations);
             if (activeChatId === id) {
-                setActiveChatId(newConversations.length > 0 ? newConversations[0].id : null);
+                const newActiveId = newConversations.length > 0 ? newConversations[0].id : null;
+                setActiveChatId(newActiveId);
+                 if (newActiveId === null) {
+                    startNewChat();
+                }
             }
             if (newConversations.length === 0) {
                  localStorage.removeItem('conversations');
@@ -239,6 +252,7 @@ const App: React.FC = () => {
         const userMessage: Message = { sender: 'user', text: userInput };
         const newMessages: Message[] = [...currentConvo.messages, userMessage];
         updateConversation(activeChatId, { messages: newMessages });
+        const isFirstMessage = currentConvo.messages.length === 0;
         setUserInput('');
         
         try {
@@ -300,7 +314,7 @@ const App: React.FC = () => {
                 }
             }
 
-            if (currentConvo.messages.length === 1 && botResponseText) {
+            if (isFirstMessage && botResponseText) {
                 const titleGenChat = ai.chats.create({
                     model: 'gemini-2.5-flash',
                     config: { systemInstruction: "بر اساس اولین پیام کاربر و پاسخ ربات، یک عنوان بسیار کوتاه (2 تا 4 کلمه) برای این گفتگو ایجاد کن." }
@@ -424,9 +438,9 @@ const App: React.FC = () => {
                         </div>
                     ) : (
                         <div className="flex flex-col items-center justify-center h-full text-center text-neutral-500">
-                             <img src="https://github.com/user-attachments/assets/75726214-3a72-4cf5-99d6-52778844ceb9" alt="Safarnameh24 Logo" className="w-32 h-32 mb-4" />
+                             <img src="http://cps.safarnameh24.com/media/images/logo/full-red-gray_mej9jEE.webp" alt="Safarnameh24 Logo" className="w-40 h-auto mb-4" />
                             <h1 className="text-4xl font-bold text-neutral-800 dark:text-neutral-200">چت بات هوشمند سفرنامه ۲۴</h1>
-                            <p className="mt-4 max-w-md">سلام! من دستیار هوشمند شما برای پیدا کردن بهترین هتل‌ها هستم. از من در مورد هتل‌ها بپرسید یا لینک سایت <a href="https://safarnameh24.com" target="_blank" rel="noopener noreferrer" className="text-[#F30F26] hover:underline">safarnameh24.com</a> را بخواهید.</p>
+                            <p className="mt-4 max-w-md">به چت بات هوشمند سفرنامه ۲۴ خوش آمدید. اگر نیاز به مشاوره قبل از خرید یا انتخاب دارید، این چت بات نیاز شما را برطرف می‌کند. لطفا <a href="https://safarnameh24.com" target="_blank" rel="noopener noreferrer" className="text-[#F30F26] hover:underline">safarnameh24.com</a> را دنبال کنید.</p>
                         </div>
                     )}
                 </div>
@@ -453,7 +467,7 @@ const App: React.FC = () => {
                                 fetchError ? "امکان ارسال پیام وجود ندارد." : 
                                 "پیام خود را اینجا بنویسید..."
                             }
-                            className="w-full py-3 pr-4 pl-14 text-lg bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none"
+                            className="w-full py-4 pr-4 pl-14 text-lg bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none"
                             rows={1}
                             disabled={isLoading || isFetchingHotels || !!fetchError}
                         />
@@ -462,7 +476,7 @@ const App: React.FC = () => {
                             disabled={isLoading || !userInput.trim() || isFetchingHotels || !!fetchError}
                             className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-[#F30F26] text-white disabled:bg-neutral-400 disabled:dark:bg-neutral-600 transition-colors"
                         >
-                           <SendIcon />
+                           <PaperPlaneIcon />
                         </button>
                     </div>
                      <p className="text-xs text-center text-neutral-500 dark:text-neutral-400 mt-2">

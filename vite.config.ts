@@ -1,9 +1,11 @@
+
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  // FIX: Replace process.cwd() with '.' to avoid TypeScript type errors where 'process' is not recognized as a Node.js global.
+  const env = loadEnv(mode, '.', '');
 
   return {
     // تنظیمات توسعه
@@ -30,7 +32,8 @@ export default defineConfig(({ mode }) => {
 
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
+        // FIX: Replace `__dirname` with a relative path to be compatible with ES Modules and avoid "Cannot find name '__dirname'" errors. `path.resolve` will resolve relative to the current working directory.
+        '@': path.resolve('./src'),
       },
     },
   };
