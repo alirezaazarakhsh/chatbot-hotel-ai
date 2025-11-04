@@ -1,12 +1,10 @@
-
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, Chat, FunctionDeclaration, Type } from "@google/genai";
 
 // --- SVG Icons ---
-const PaperPlaneIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+const SendArrowIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 11l3-3m0 0l3 3m-3-3v8m0-13a9 9 0 110 18 9 9 0 010-18z" />
     </svg>
 );
 
@@ -30,22 +28,29 @@ const TrashIcon = () => (
     </svg>
 );
 
-// FIX: Added the missing AttentionIcon component.
 const AttentionIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
     </svg>
 );
 
+const MenuIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+);
+
+
 // --- Types ---
+interface GroundingSource {
+  uri: string;
+  title: string;
+}
+
 interface Message {
   sender: 'user' | 'bot';
   text: string;
-}
-
-interface Hotel {
-    name: string;
-    url: string;
+  sources?: GroundingSource[];
 }
 
 interface Conversation {
@@ -65,55 +70,23 @@ const App: React.FC = () => {
     const [userInput, setUserInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [hotelList, setHotelList] = useState<Hotel[]>([]);
-    const [fetchError, setFetchError] = useState<string | null>(null);
-    const [isFetchingHotels, setIsFetchingHotels] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
 
     const endOfMessagesRef = useRef<HTMLDivElement>(null);
     const memoizedGenAI = useRef<GoogleGenAI | null>(null);
     
     // --- API Key Check ---
     useEffect(() => {
-        // FIX: Per guidelines, API key must be from process.env.API_KEY.
         const key = process.env.API_KEY;
         if (!key) {
-            // FIX: Updated error message to reflect the correct environment variable.
             setApiKeyError("کلید API تعریف نشده است. لطفاً فایل .env.local را ساخته و GEMINI_API_KEY را در آن تنظیم کنید.");
         } else {
             setApiKey(key);
-            // FIX: Per guidelines, GoogleGenAI must be initialized with a named apiKey parameter.
-            // Proxing API requests through a custom domain to bypass regional blocks.
-            // A server must be set up at this address to forward requests to generativelanguage.googleapis.com.
             memoizedGenAI.current = new GoogleGenAI({ 
-                apiKey: key,
-                apiEndpoint: "https://gemini-proxy.safarnameh24.com"
+                apiKey: key
             });
         }
     }, []);
-
-    // --- Hotel List Fetching ---
-    const fetchHotels = useCallback(async () => {
-        setIsFetchingHotels(true);
-        setFetchError(null);
-        try {
-            const response = await fetch("http://cps.safarnameh24.com/api/v1/hotel/hotels/chatbot/");
-            if (!response.ok) {
-                throw new Error(`خطای شبکه: ${response.statusText}`);
-            }
-            const data: Hotel[] = await response.json();
-            setHotelList(data);
-        } catch (error: any) {
-            console.error("Failed to fetch hotel list:", error);
-            setFetchError("مشکلی در دریافت لیست هتل‌ها پیش آمد. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.");
-        } finally {
-            setIsFetchingHotels(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchHotels();
-    }, [fetchHotels]);
 
     // --- Local Storage and Theme Initialization ---
     useEffect(() => {
@@ -138,7 +111,6 @@ const App: React.FC = () => {
                     setConversations(parsedConvos);
                     setActiveChatId(recentConvo.id);
                 } else {
-                    // Start fresh if all chats are older than a week
                     startNewChat();
                 }
             } else {
@@ -169,34 +141,18 @@ const App: React.FC = () => {
 
     useEffect(() => {
         endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [conversations, activeChatId]);
+    }, [conversations, activeChatId, isLoading]);
     
-    // --- Tool Definition ---
-    const searchHotelTool: FunctionDeclaration = {
-        name: "searchHotelOnSafarnameh",
-        description: "جستجوی هتل در لیست هتل‌های سایت سفرنامه 24 بر اساس نام هتل. این ابزار لیستی از هتل‌های منطبق با نام ورودی را برمی‌گرداند.",
-        parameters: {
-            type: Type.OBJECT,
-            properties: {
-                hotelName: {
-                    type: Type.STRING,
-                    description: "نام هتل برای جستجو (مثلاً 'پارسیان آزادی', 'اسپیناس پالاس')."
-                },
-            },
-            required: ["hotelName"],
-        },
-    };
-
-    const systemInstruction = `شما یک دستیار هوشمند و متخصص هتل برای وب‌سایت "سفرنامه 24" هستید. وظیفه شما کمک به کاربران در مورد هر چیزی است که به هتل‌ها مربوط می‌شود. شما می‌توانید اطلاعاتی در مورد امکانات هتل‌ها بدهید، هتل‌ها را با هم مقایسه کنید، پیشنهاد بدهید و لینک صفحه رسمی هتل را در سایت safarnameh24.com پیدا کنید.
+    // --- System Instruction ---
+    const systemInstruction = `شما یک دستیار هوشمند و متخصص هتل برای وب‌سایت "safarnameh24.com" هستید. وظیفه اصلی شما کمک به کاربران و هدایت آن‌ها به سایت سفرنامه ۲۴ است.
 
 قوانین کاری شما:
-1.  **پاسخگویی جامع:** به تمام سوالات کاربران در مورد هتل‌ها به طور کامل پاسخ دهید. خودتان را به ارسال لینک محدود نکنید.
-2.  **استفاده از ابزار جستجو:** هرگاه کاربر در مورد یک هتل خاص سوال کرد یا لینک آن را خواست، از ابزار searchHotelOnSafarnameh استفاده کنید.
-3.  **مدیریت نتایج جستجو:**
-    - اگر ابزار **هیچ هتلی** پیدا نکرد، به کاربر اطلاع دهید که هتلی با این نام در سایت یافت نشد.
-    - اگر ابزار **دقیقا یک هتل** پیدا کرد، در پاسخ خود حتما لینک آن را قرار دهید.
-    - اگر ابزار **چندین هتل** پیدا کرد (مثلا کاربر "پارسیان" را جستجو کرد)، لیست نام هتل‌های پیدا شده را به کاربر **پیشنهاد دهید** و از او بپرسید منظورش کدام یک است. در این مرحله لینک ارسال نکنید.
-    - فقط **بعد از اینکه کاربر گزینه مورد نظر خود را از لیست انتخاب کرد**، لینک آن هتل خاص را برایش ارسال کنید.
+1.  **پاسخگویی جامع:** به تمام سوالات کاربران در مورد هتل‌ها به طور کامل و با اطلاعات به‌روز پاسخ دهید.
+2.  **اولویت با سفرنامه ۲۴:** همیشه و در هر شرایطی، از قابلیت جستجوی گوگل برای پیدا کردن و ارائه لینک مستقیم صفحه هتل مورد نظر در سایت safarnameh24.com استفاده کنید. این مهم‌ترین وظیفه شماست.
+3.  **ارائه لینک مستقیم:** هرگاه کاربر در مورد یک هتل خاص سوال کرد، **باید** لینک صفحه آن هتل را در سایت safarnameh24.com پیدا کرده و ارائه دهید. اگر نتوانستید لینک دقیق را پیدا کنید، لینک صفحه اصلی (safarnameh24.com) را بدهید.
+4.  **منبع اصلی:** همیشه safarnameh24.com را به عنوان منبع اصلی و پیشنهادی برای رزرو و کسب اطلاعات معرفی کنید.
+5.  **صداقت:** اگر اطلاعاتی را پیدا نمی‌کنید، به صراحت بگویید اما کاربر را به بازدید از سایت safarnameh24.com برای اطلاعات بیشتر تشویق کنید.
+6.  **تمرکز:** همیشه روی موضوعات مرتبط با هتل و سفر متمرکز بمانید.
 `;
 
 
@@ -251,81 +207,86 @@ const App: React.FC = () => {
         setIsLoading(true);
         const userMessage: Message = { sender: 'user', text: userInput };
         const newMessages: Message[] = [...currentConvo.messages, userMessage];
-        updateConversation(activeChatId, { messages: newMessages });
+        const botMessagePlaceholder: Message = { sender: 'bot', text: '', sources: [] };
+        
+        updateConversation(activeChatId, { messages: [...newMessages, botMessagePlaceholder] });
+        
         const isFirstMessage = currentConvo.messages.length === 0;
+        const currentInput = userInput;
         setUserInput('');
         
         try {
             let chat = currentConvo.chatInstance;
             if (!chat) {
                  chat = ai.chats.create({
-                    model: 'gemini-2.5-pro',
+                    model: 'gemini-2.5-flash',
                     config: {
                         systemInstruction,
-                        tools: [{ functionDeclarations: [searchHotelTool] }],
+                        tools: [{ googleSearch: {} }],
                     },
-                    // history: currentConvo.messages.map(m => ({
-                    //     role: m.sender === 'user' ? 'user' : 'model',
-                    //     parts: [{ text: m.text }]
-                    // }))
                 });
                 updateConversation(activeChatId, { chatInstance: chat });
             }
 
-            const result = await chat.sendMessageStream({ message: userInput });
+            const result = await chat.sendMessageStream({ message: currentInput });
 
-            let botResponseText = '';
+            let fullBotResponseText = '';
+            let sources: GroundingSource[] = [];
             
             for await (const chunk of result) {
-                const functionCalls = chunk.functionCalls;
-                if (functionCalls && functionCalls.length > 0) {
-                    const call = functionCalls[0];
-                    if (call.name === 'searchHotelOnSafarnameh') {
-                        // FIX: Cast `call.args.hotelName` to string to resolve 'toLowerCase' does not exist on type 'unknown' error.
-                        const hotelName = (call.args.hotelName as string).toLowerCase();
-                        
-                        const foundHotels = hotelList.filter(hotel => 
-                            hotel.name.toLowerCase().includes(hotelName)
+                if (chunk.text) {
+                     for (const char of chunk.text) {
+                        fullBotResponseText += char;
+                         setConversations(prev => prev.map(c => {
+                             if (c.id !== activeChatId) return c;
+                             const updatedMessages = [...c.messages];
+                             updatedMessages[updatedMessages.length - 1] = {
+                                 ...updatedMessages[updatedMessages.length - 1],
+                                 text: fullBotResponseText,
+                             };
+                             return { ...c, messages: updatedMessages };
+                         }));
+                         await new Promise(resolve => setTimeout(resolve, 20)); // Typing speed
+                     }
+                }
+                
+                const groundingChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
+                if (groundingChunks) {
+                    const newSources = groundingChunks
+                        .map((c: any) => c.web)
+                        .filter(Boolean)
+                        .map((web: any) => ({ uri: web.uri, title: web.title }))
+                        .filter((source: GroundingSource) => 
+                            !sources.some(existing => existing.uri === source.uri)
                         );
-                        
-                        // FIX: The message for a function response must be an array of `Part` objects.
-                        // The `FunctionResponsePart` type is `{ functionResponse: { name: string, response: object } }`.
-                        const functionResponsePayload = [{
-                            functionResponse: {
-                                name: call.name,
-                                response: { result: foundHotels }
-                            }
-                        }];
-                        
-                        const followUpResult = await chat.sendMessageStream({ message: functionResponsePayload });
-                        
-                        for await (const followUpChunk of followUpResult) {
-                            botResponseText += followUpChunk.text;
-                             updateConversation(activeChatId, {
-                                messages: [...newMessages, { sender: 'bot', text: botResponseText }]
-                            });
-                        }
+                    if (newSources.length > 0) {
+                        sources.push(...newSources);
+                        setConversations(prev => prev.map(c => {
+                             if (c.id !== activeChatId) return c;
+                             const updatedMessages = [...c.messages];
+                             updatedMessages[updatedMessages.length - 1] = {
+                                 ...updatedMessages[updatedMessages.length - 1],
+                                 sources: [...sources],
+                             };
+                             return { ...c, messages: updatedMessages };
+                         }));
                     }
-                } else {
-                    botResponseText += chunk.text;
-                    updateConversation(activeChatId, {
-                       messages: [...newMessages, { sender: 'bot', text: botResponseText }]
-                    });
                 }
             }
+            
+            updateConversation(activeChatId, { lastUpdated: Date.now() });
 
-            if (isFirstMessage && botResponseText) {
+            if (isFirstMessage && fullBotResponseText) {
                 const titleGenChat = ai.chats.create({
                     model: 'gemini-2.5-flash',
                     config: { systemInstruction: "بر اساس اولین پیام کاربر و پاسخ ربات، یک عنوان بسیار کوتاه (2 تا 4 کلمه) برای این گفتگو ایجاد کن." }
                 });
-                const titleResponse = await titleGenChat.sendMessage({ message: `کاربر: ${userMessage.text}\nربات: ${botResponseText}` });
+                const titleResponse = await titleGenChat.sendMessage({ message: `کاربر: ${userMessage.text}\nربات: ${fullBotResponseText}` });
                 const newTitle = titleResponse.text.trim();
                 if (newTitle) {
                     updateConversation(activeChatId, { title: newTitle });
                 }
             }
-
 
         } catch (error) {
             console.error("Error sending message:", error);
@@ -336,28 +297,51 @@ const App: React.FC = () => {
             } else if (errorMessage.includes("fetch")) {
                 userFriendlyError = "خطا در اتصال به شبکه. لطفا اینترنت خود را بررسی کنید.";
             }
-            updateConversation(activeChatId, {
-                messages: [...newMessages, { sender: 'bot', text: userFriendlyError }]
-            });
+             setConversations(prev => prev.map(c => {
+                if (c.id !== activeChatId) return c;
+                const updatedMessages = [...c.messages];
+                updatedMessages[updatedMessages.length - 1] = {
+                    ...updatedMessages[updatedMessages.length - 1],
+                    text: userFriendlyError,
+                };
+                return { ...c, messages: updatedMessages };
+            }));
         } finally {
             setIsLoading(false);
         }
     };
     
     // --- Render Functions ---
-    const RenderMessageWithLinks: React.FC<{ text: string }> = ({ text }) => {
+    const RenderMessageWithLinks: React.FC<{ message: Message }> = ({ message }) => {
+        const { text, sources } = message;
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         const parts = text.split(urlRegex);
     
         return (
-            <p className="whitespace-pre-wrap">
-                {parts.map((part, index) => {
-                    if (part.match(urlRegex)) {
-                        return <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="text-[#F30F26] hover:underline">{part}</a>;
-                    }
-                    return <span key={index}>{part}</span>;
-                })}
-            </p>
+            <div>
+                <p className="whitespace-pre-wrap">
+                    {parts.map((part, index) => {
+                        if (part.match(urlRegex)) {
+                            return <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="text-[#F30F26] hover:underline">{part}</a>;
+                        }
+                        return <span key={index}>{part}</span>;
+                    })}
+                </p>
+                {sources && sources.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-neutral-300 dark:border-neutral-600">
+                        <h4 className="text-xs font-semibold mb-1 text-neutral-600 dark:text-neutral-400">منابع:</h4>
+                        <ul className="list-disc list-inside space-y-1">
+                            {sources.map((source, index) => (
+                                <li key={index} className="text-xs">
+                                    <a href={source.uri} target="_blank" rel="noopener noreferrer" className="text-[#F30F26] hover:underline truncate">
+                                        {source.title || source.uri}
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </div>
         );
     };
     
@@ -376,10 +360,25 @@ const App: React.FC = () => {
     const activeConversation = getActiveConversation();
 
     return (
-        <div style={{ fontFamily: "'Vazirmatn', sans-serif" }} className="flex h-screen bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100">
+        <div style={{ fontFamily: "'Vazirmatn', sans-serif" }} className="h-screen bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden">
+             {/* Backdrop for mobile */}
+            {isSidebarOpen && (
+                <div 
+                    onClick={() => setIsSidebarOpen(false)} 
+                    className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden"
+                    aria-hidden="true"
+                ></div>
+            )}
+            
             {/* Sidebar */}
-            <div className={`flex flex-col bg-neutral-100 dark:bg-neutral-900 transition-all duration-300 ${isSidebarOpen ? 'w-72' : 'w-0'} overflow-hidden`}>
-                <div className="p-4 flex-grow flex flex-col">
+             <div className={`
+                flex flex-col bg-neutral-100 dark:bg-neutral-900 
+                transition-transform duration-300 ease-in-out
+                fixed inset-y-0 right-0 z-30
+                w-72 
+                transform ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}
+            `}>
+                <div className="p-4 flex-grow flex flex-col min-h-0">
                     <button onClick={startNewChat} className="flex items-center justify-center w-full px-4 py-2 mb-4 bg-[#F30F26] text-white rounded-lg hover:bg-red-700 transition-colors">
                         <PlusIcon />
                         گفتگوی جدید
@@ -389,7 +388,12 @@ const App: React.FC = () => {
                         {conversations.slice().reverse().map(convo => (
                             <div key={convo.id} className="relative group">
                                 <button
-                                    onClick={() => setActiveChatId(convo.id)}
+                                    onClick={() => {
+                                        setActiveChatId(convo.id);
+                                        if (window.innerWidth < 1024) {
+                                            setIsSidebarOpen(false);
+                                        }
+                                    }}
                                     className={`w-full text-right p-2 my-1 rounded-md truncate ${activeChatId === convo.id ? 'bg-neutral-200 dark:bg-neutral-700' : 'hover:bg-neutral-200 dark:hover:bg-neutral-700'}`}
                                 >
                                     {convo.title}
@@ -412,34 +416,38 @@ const App: React.FC = () => {
             </div>
 
             {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col">
-                <div className="flex-1 overflow-y-auto p-6">
+            <div className={`h-full flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'lg:mr-72' : ''}`}>
+                 {/* Header */}
+                <div className="flex items-center justify-between p-2 sm:p-4 border-b border-neutral-200 dark:border-neutral-700">
+                     {/* Spacer to balance the title */}
+                    <div className="w-10 h-10"></div>
+                    <h1 className="text-lg font-semibold truncate mx-4 text-center">
+                        {activeConversation?.title || 'گفتگوی جدید'}
+                    </h1>
+                    <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700 lg:hidden">
+                        <MenuIcon />
+                    </button>
+                     <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700 hidden lg:block">
+                        <MenuIcon />
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 md:p-6">
                      {activeConversation && activeConversation.messages.length > 0 ? (
                         <div className="space-y-6">
                             {activeConversation.messages.map((msg, index) => (
                                 <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-xl p-4 rounded-2xl ${msg.sender === 'user' ? 'bg-[#F30F26] text-white rounded-br-none' : 'bg-neutral-200 dark:bg-neutral-700 rounded-bl-none'}`}>
-                                       <RenderMessageWithLinks text={msg.text} />
+                                    <div className={`max-w-[85%] md:max-w-xl p-4 rounded-2xl ${msg.sender === 'user' ? 'bg-[#F30F26] text-white rounded-br-none' : 'bg-neutral-200 dark:bg-neutral-700 rounded-bl-none'}`}>
+                                       <RenderMessageWithLinks message={msg} />
                                     </div>
                                 </div>
                             ))}
-                             {isLoading && (
-                                <div className="flex justify-start">
-                                    <div className="max-w-xl p-4 rounded-2xl bg-neutral-200 dark:bg-neutral-700 rounded-bl-none">
-                                        <div className="flex items-center space-x-2 space-x-reverse">
-                                            <div className="w-2 h-2 bg-neutral-500 rounded-full animate-pulse"></div>
-                                            <div className="w-2 h-2 bg-neutral-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                                            <div className="w-2 h-2 bg-neutral-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                             <div ref={endOfMessagesRef} />
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-center text-neutral-500">
+                        <div className="flex flex-col items-center justify-center h-full text-center text-neutral-500 p-4">
                              <img src="http://cps.safarnameh24.com/media/images/logo/full-red-gray_mej9jEE.webp" alt="Safarnameh24 Logo" className="w-40 h-auto mb-4" />
-                            <h1 className="text-4xl font-bold text-neutral-800 dark:text-neutral-200">چت بات هوشمند سفرنامه ۲۴</h1>
+                            <h1 className="text-3xl md:text-4xl font-bold text-neutral-800 dark:text-neutral-200">چت بات هوشمند سفرنامه ۲۴</h1>
                             <p className="mt-4 max-w-md">به چت بات هوشمند سفرنامه ۲۴ خوش آمدید. اگر نیاز به مشاوره قبل از خرید یا انتخاب دارید، این چت بات نیاز شما را برطرف می‌کند. لطفا <a href="https://safarnameh24.com" target="_blank" rel="noopener noreferrer" className="text-[#F30F26] hover:underline">safarnameh24.com</a> را دنبال کنید.</p>
                         </div>
                     )}
@@ -447,12 +455,6 @@ const App: React.FC = () => {
 
                 <div className="p-4 border-t border-neutral-200 dark:border-neutral-700">
                     <div className="relative">
-                        {fetchError && (
-                            <div className="text-center text-red-500 mb-2 flex items-center justify-center">
-                                <p>{fetchError}</p>
-                                <button onClick={fetchHotels} className="mr-2 px-3 py-1 bg-red-500 text-white rounded-md text-sm hover:bg-red-600">تلاش مجدد</button>
-                            </div>
-                        )}
                         <textarea
                             value={userInput}
                             onChange={(e) => setUserInput(e.target.value)}
@@ -462,21 +464,17 @@ const App: React.FC = () => {
                                     handleSendMessage();
                                 }
                             }}
-                            placeholder={
-                                isFetchingHotels ? "در حال بارگذاری لیست هتل‌ها..." : 
-                                fetchError ? "امکان ارسال پیام وجود ندارد." : 
-                                "پیام خود را اینجا بنویسید..."
-                            }
-                            className="w-full py-4 pr-4 pl-14 text-lg bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none"
+                            placeholder="پیام خود را اینجا بنویسید..."
+                            className="w-full py-3 pr-10 pl-12 sm:py-4 sm:pr-12 sm:pl-14 text-base sm:text-lg bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none"
                             rows={1}
-                            disabled={isLoading || isFetchingHotels || !!fetchError}
+                            disabled={isLoading}
                         />
                         <button
                             onClick={handleSendMessage}
-                            disabled={isLoading || !userInput.trim() || isFetchingHotels || !!fetchError}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-[#F30F26] text-white disabled:bg-neutral-400 disabled:dark:bg-neutral-600 transition-colors"
+                            disabled={isLoading || !userInput.trim()}
+                            className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-[#F30F26] text-white disabled:bg-neutral-400 disabled:dark:bg-neutral-600 transition-colors"
                         >
-                           <PaperPlaneIcon />
+                           <SendArrowIcon />
                         </button>
                     </div>
                      <p className="text-xs text-center text-neutral-500 dark:text-neutral-400 mt-2">
