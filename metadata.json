@@ -1,0 +1,5 @@
+{
+  "name": "Web App Assistant",
+  "description": "An assistant that explains its capabilities and offers to build a web application in response to an out-of-scope request.",
+  "requestFramePermissions": []
+}
