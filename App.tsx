@@ -24,6 +24,12 @@ const MoonIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
 );
 
+const AttentionIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    </svg>
+);
+
 
 // --- Types ---
 interface Message {
@@ -40,6 +46,10 @@ interface Conversation {
 interface Hotel {
     name: string;
     link: string;
+}
+
+interface FetchError {
+  message: string;
 }
 
 // --- Helper Component for Rendering Links ---
@@ -98,7 +108,7 @@ const App: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [hotelList, setHotelList] = useState<Hotel[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<FetchError | null>(null);
   const [isFetchingHotels, setIsFetchingHotels] = useState(true);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -122,8 +132,9 @@ const App: React.FC = () => {
         }
     } catch (error) {
         console.error("Failed to fetch hotel list:", error);
-        // Set a generic error flag. The UI will construct the detailed message.
-        setFetchError("FETCH_ERROR");
+        setFetchError({
+            message: "خطا در برقراری ارتباط با سرور هتل‌ها. لطفا اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید."
+        });
     } finally {
         setIsFetchingHotels(false);
     }
@@ -355,11 +366,24 @@ const App: React.FC = () => {
 
     } catch (error) {
         console.error("Error sending message:", error);
-        const errorMessage = { sender: 'bot' as const, text: "متاسفانه مشکلی پیش آمده. لطفا دوباره تلاش کنید." };
+        let errorText = "متاسفانه مشکلی پیش آمده. لطفا دوباره تلاش کنید.";
+
+        if (error instanceof Error) {
+            if (error.message.includes('API key not valid')) {
+                errorText = "خطا: کلید API معتبر نیست. لطفا از معتبر بودن کلید خود اطمینان حاصل کنید.";
+            } else if (error.message.includes('fetch')) {
+                errorText = "خطا در اتصال به اینترنت. لطفا شبکه خود را بررسی کنید.";
+            } else {
+                 errorText = `خطای غیرمنتظره: ${error.message}`;
+            }
+        }
+        
+        const errorMessage = { sender: 'bot' as const, text: errorText };
         setConversations(prev => prev.map(conv => {
             if (conv.id === finalConversationId) {
                 const newMessages = [...conv.messages];
-                if (newMessages.length > 0 && newMessages[newMessages.length - 1].sender === 'bot') {
+                 // Replace placeholder or add new message
+                if (newMessages.length > 0 && newMessages[newMessages.length - 1].sender === 'bot' && newMessages[newMessages.length - 1].text === '') {
                     newMessages[newMessages.length - 1] = errorMessage;
                 } else {
                     newMessages.push(errorMessage);
@@ -461,7 +485,7 @@ const App: React.FC = () => {
                 isFetchingHotels
                   ? "در حال بارگذاری لیست هتل‌ها..."
                   : fetchError
-                  ? "خطا در اتصال به سرور. لطفا خطا را برطرف کنید."
+                  ? "خطا در اتصال به سرور."
                   : "در مورد هتل‌ها از من بپرسید..."
               }
               className="w-full py-4 pr-4 pl-12 bg-gray-100 dark:bg-neutral-800 rounded-lg focus:ring-2 focus:ring-[#F30F26] focus:outline-none resize-none text-gray-900 dark:text-neutral-200"
@@ -473,17 +497,19 @@ const App: React.FC = () => {
             </button>
           </div>
            {fetchError && (
-              <div className="text-center mt-2 p-3 bg-red-500/10 rounded-lg border border-red-500/30">
-                <p className="text-sm font-semibold text-red-600 dark:text-red-400">مشکل در اتصال به سرور (CORS)</p>
-                <p className="text-xs text-red-500 mt-1">برای حل این مشکل، لطفا در تنظیمات سرور خود، دسترسی دامنه زیر را به لیست `CORS_ALLOWED_ORIGINS` اضافه کنید:</p>
-                <code className="block text-center bg-gray-200 dark:bg-neutral-700 text-red-800 dark:text-red-300 p-2 rounded-md my-2 text-xs break-all">{window.location.origin}</code>
-                <button 
-                    onClick={fetchHotels} 
-                    className="mt-2 px-4 py-1 text-sm bg-[#F30F26] text-white rounded-lg hover:bg-[#D90D22] transition-colors disabled:bg-gray-400"
-                    disabled={isFetchingHotels}
-                  >
-                   {isFetchingHotels ? 'در حال تلاش...' : 'تلاش مجدد'}
-                 </button>
+              <div className="text-center mt-2 p-4 bg-red-100 dark:bg-red-900/50 rounded-lg border border-red-300 dark:border-red-700 text-red-900 dark:text-red-100">
+                  <div className="flex items-center justify-center mb-2">
+                      <AttentionIcon />
+                      <h3 className="font-bold text-lg text-red-800 dark:text-white">خطا در اتصال</h3>
+                  </div>
+                  <p className="text-sm text-red-800 dark:text-red-200">{fetchError.message}</p>
+                   <button 
+                      onClick={fetchHotels} 
+                      className="mt-4 px-4 py-2 text-sm font-semibold bg-[#F30F26] text-white rounded-lg hover:bg-[#D90D22] transition-colors disabled:bg-gray-500"
+                      disabled={isFetchingHotels}
+                    >
+                     {isFetchingHotels ? 'در حال تلاش...' : 'تلاش مجدد'}
+                   </button>
               </div>
             )}
         </div>
