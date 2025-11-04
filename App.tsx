@@ -30,6 +30,12 @@ const AttentionIcon = () => (
     </svg>
 );
 
+const TrashIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+);
+
 
 // --- Types ---
 interface Message {
@@ -45,7 +51,7 @@ interface Conversation {
 
 interface Hotel {
     name: string;
-    link: string;
+    url: string;
 }
 
 interface FetchError {
@@ -56,10 +62,10 @@ interface FetchError {
 
 // --- Mock Data for Development ---
 const MOCK_HOTELS: Hotel[] = [
-    { name: "هتل اسپیناس پالاس تهران", link: "https://safarnameh24.com/best-hotels/espinas-palace" },
-    { name: "هتل بزرگ شیراز", link: "https://safarnameh24.com/best-hotels/shiraz-grand" },
-    { name: "هتل عباسی اصفهان", link: "https://safarnameh24.com/best-hotels/abbasi-isfahan" },
-    { name: "هتل داریوش کیش", link: "https://safarnameh24.com/best-hotels/dariush-kish" },
+    { name: "هتل اسپیناس پالاس تهران", url: "https://safarnameh24.com/best-hotels/espinas-palace" },
+    { name: "هتل بزرگ شیراز", url: "https://safarnameh24.com/best-hotels/shiraz-grand" },
+    { name: "هتل عباسی اصفهان", url: "https://safarnameh24.com/best-hotels/abbasi-isfahan" },
+    { name: "هتل داریوش کیش", url: "https://safarnameh24.com/best-hotels/dariush-kish" },
 ];
 
 
@@ -171,11 +177,19 @@ const App: React.FC = () => {
             setIsFetchingHotels(false);
         }, 500);
     } else {
-        // Production environment: fetch real data
         fetchHotels();
     }
 
-    // Load theme from localStorage
+    // --- Weekly Reset Logic ---
+    const lastActivityTimestamp = localStorage.getItem('lastActivityTimestamp');
+    const oneWeekInMs = 7 * 24 * 60 * 60 * 1000;
+    let shouldReset = false;
+    if (lastActivityTimestamp) {
+        if (Date.now() - parseInt(lastActivityTimestamp, 10) > oneWeekInMs) {
+            shouldReset = true;
+        }
+    }
+
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
     if (savedTheme) {
       setTheme(savedTheme);
@@ -185,14 +199,19 @@ const App: React.FC = () => {
       setTheme('light');
     }
 
-    // Load conversations from localStorage
     const savedConversations = localStorage.getItem('conversations');
     if (savedConversations) {
       setConversations(JSON.parse(savedConversations));
     }
-    const savedActiveId = localStorage.getItem('activeConversationId');
-    if (savedActiveId) {
-      setActiveConversationId(savedActiveId);
+    
+    if (shouldReset) {
+        setActiveConversationId(null);
+        localStorage.setItem('activeConversationId', '');
+    } else {
+        const savedActiveId = localStorage.getItem('activeConversationId');
+        if (savedActiveId) {
+          setActiveConversationId(savedActiveId);
+        }
     }
   }, [fetchHotels]);
 
@@ -206,9 +225,7 @@ const App: React.FC = () => {
   }, [theme]);
 
   useEffect(() => {
-    if (conversations.length > 0) {
-      localStorage.setItem('conversations', JSON.stringify(conversations));
-    }
+    localStorage.setItem('conversations', JSON.stringify(conversations));
     localStorage.setItem('activeConversationId', activeConversationId || '');
   }, [conversations, activeConversationId]);
   
@@ -240,8 +257,20 @@ const App: React.FC = () => {
     setActiveConversationId(id);
   };
 
+  const handleDeleteConversation = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); 
+    if (window.confirm("آیا از حذف این گفتگو مطمئن هستید؟")) {
+        setConversations(prev => prev.filter(c => c.id !== id));
+        if (activeConversationId === id) {
+            setActiveConversationId(null);
+        }
+    }
+  };
+
   const handleSendMessage = useCallback(async () => {
     if (!userInput.trim() || isLoading || isTyping) return;
+
+    localStorage.setItem('lastActivityTimestamp', Date.now().toString());
 
     const initialUserInput = userInput;
     setUserInput('');
@@ -249,7 +278,6 @@ const App: React.FC = () => {
     let conversationIdToUpdate = activeConversationId;
     let isFirstMessageInHistory = false;
 
-    // Create or update conversation with user message
     if (!conversationIdToUpdate) {
         isFirstMessageInHistory = true;
         const newId = Date.now().toString();
@@ -297,7 +325,7 @@ const App: React.FC = () => {
                 history: history,
                 config: {
                     tools: [{ functionDeclarations: [searchHotelTool] }],
-                    systemInstruction: "شما یک دستیار هوش مصنوعی به نام 'سفرنامه ۲۴' هستید. تخصص شما فقط و فقط در زمینه هتل‌ها است. شما می‌توانید با استفاده از ابزار جستجو، لینک مستقیم هتل‌ها را از سایت safarnameh24.com پیدا کنید. همیشه برای پیدا کردن لینک هتل از ابزار خود استفاده کنید. وقتی لینک را پیدا کردید، آن را در یک جمله کامل و دوستانه به کاربر ارائه دهید. اگر در پاسخ ابزار، مقدار url برابر با 'NOT_FOUND' بود، به کاربر اطلاع بده که هتلی با آن نام در سایت پیدا نشده است و از او بخواه که نام دیگری را امتحان کند. اگر سوالی خارج از این حوزه پرسیده شد، با احترام به کاربر بگویید که فقط می‌توانید در مورد هتل‌ها کمک کنید. لحن شما باید دوستانه و خودمونی باشد. در ابتدای هر مکالمه جدید، خودتان را معرفی کرده و به سایت safarnameh24.com اشاره کنید.",
+                    systemInstruction: "شما یک دستیار هوش مصنوعی به نام 'سفرنامه ۲۴' هستید. شما می‌توانید به سوالات عمومی پاسخ دهید. شما یک ابزار ویژه برای پیدا کردن لینک مستقیم هتل‌ها در سایت safarnameh24.com دارید. وقتی کاربر در مورد هتلی سوال می‌پرسد یا لینک آن را می‌خواهد، حتماً از این ابزار استفاده کنید. اگر ابزار هتل را پیدا کرد، لینک آن را در یک جمله کامل و دوستانه به کاربر ارائه دهید و اطمینان حاصل کنید که خود URL در پاسخ شما به صورت متنی وجود دارد تا کاربر بتواند روی آن کلیک کند. اگر در پاسخ ابزار، مقدار url برابر با 'NOT_FOUND' بود، به کاربر اطلاع بده که هتلی با آن نام در سایت پیدا نشده است و از او بخواه که نام دیگری را امتحان کند. برای تمام سوالات دیگر، به صورت مفید و دوستانه پاسخ دهید. لحن شما باید خودمونی باشد. در ابتدای هر مکالمه جدید، خودتان را معرفی کرده و به سایت safarnameh24.com اشاره کنید.",
                 },
             });
         }
@@ -310,7 +338,6 @@ const App: React.FC = () => {
         let botResponseText = '';
         let collectedFunctionCalls: any[] = [];
         
-        // Add an empty bot message placeholder to stream into
         setConversations(prev =>
             prev.map(conv => 
                 conv.id === finalConversationId 
@@ -336,17 +363,15 @@ const App: React.FC = () => {
             }
         }
 
-        // --- Handle Function Call if detected ---
         if (collectedFunctionCalls.length > 0) {
             const call = collectedFunctionCalls[0];
             const query = call.args.query;
 
-            // Search in the fetched hotel list
             const foundHotel = hotelList.find(hotel => 
                 hotel.name.toLowerCase().includes(query.toLowerCase())
             );
 
-            const searchResultUrl = foundHotel ? foundHotel.link : 'NOT_FOUND';
+            const searchResultUrl = foundHotel ? foundHotel.url : 'NOT_FOUND';
 
             const functionResponsePayload = {
                 functionResponse: {
@@ -355,7 +380,6 @@ const App: React.FC = () => {
                 },
             };
             
-            // Optionally update UI to show "Searching..."
             setConversations(prev => prev.map(conv => {
                 if (conv.id === finalConversationId) {
                     const newMessages = [...conv.messages];
@@ -367,7 +391,6 @@ const App: React.FC = () => {
                 return conv;
             }));
 
-            // Send the function result back to the model
             const finalStream = await genAIChatInstance.current.sendMessageStream({ message: [functionResponsePayload] });
             
             let finalBotText = '';
@@ -382,10 +405,9 @@ const App: React.FC = () => {
                     return conv;
                 }));
             }
-            botResponseText = finalBotText; // for title generation
+            botResponseText = finalBotText;
         }
         
-        // --- Generate Title for New Chats ---
         if (isFirstMessageInHistory && botResponseText) {
             const titlePrompt = `برای این گفتگو یک عنوان کوتاه و مناسب در حد ۳ تا ۵ کلمه به زبان فارسی بساز:\n\nکاربر: ${initialUserInput}\n\nربات: ${botResponseText}`;
             const titleResponse = await ai.models.generateContent({
@@ -416,7 +438,6 @@ const App: React.FC = () => {
         setConversations(prev => prev.map(conv => {
             if (conv.id === finalConversationId) {
                 const newMessages = [...conv.messages];
-                 // Replace placeholder or add new message
                 if (newMessages.length > 0 && newMessages[newMessages.length - 1].sender === 'bot' && newMessages[newMessages.length - 1].text === '') {
                     newMessages[newMessages.length - 1] = errorMessage;
                 } else {
@@ -445,9 +466,16 @@ const App: React.FC = () => {
         <div className="flex-grow overflow-y-auto pr-2">
           <h2 className="text-sm font-semibold text-gray-500 dark:text-neutral-500 mb-2">تاریخچه گفتگو</h2>
           {conversations.map(convo => (
-            <button key={convo.id} onClick={() => handleSelectConversation(convo.id)} className={`w-full text-right p-3 my-1 rounded-lg truncate ${activeConversationId === convo.id ? 'bg-gray-300 dark:bg-neutral-800' : 'hover:bg-gray-200 dark:hover:bg-neutral-700'}`}>
-              {convo.title}
-            </button>
+            <div key={convo.id} onClick={() => handleSelectConversation(convo.id)} className={`group w-full flex items-center justify-between p-3 my-1 rounded-lg cursor-pointer ${activeConversationId === convo.id ? 'bg-gray-300 dark:bg-neutral-800' : 'hover:bg-gray-200 dark:hover:bg-neutral-700'}`}>
+                <span className="truncate flex-1 text-right">{convo.title}</span>
+                <button 
+                  onClick={(e) => handleDeleteConversation(e, convo.id)} 
+                  className="p-1 rounded-full text-gray-500 dark:text-neutral-400 opacity-0 group-hover:opacity-100 hover:bg-gray-300 dark:hover:bg-neutral-600 transition-opacity"
+                  aria-label={`حذف گفتگوی ${convo.title}`}
+                >
+                    <TrashIcon />
+                </button>
+            </div>
           ))}
         </div>
         <div className="pt-4 border-t border-gray-300 dark:border-neutral-800">
