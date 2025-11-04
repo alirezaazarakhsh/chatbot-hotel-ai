@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  react-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"   # Host:3001 → Container:3000
+    environment:
+      - NODE_ENV=production
