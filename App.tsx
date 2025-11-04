@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, Chat, Part, Modality } from "@google/genai";
 
@@ -563,6 +564,21 @@ ${hotelListString}
 
 
     // --- Audio Handling ---
+    const initAudioContext = useCallback(() => {
+        if (audioContextRef.current) {
+            if (audioContextRef.current.state === 'suspended') {
+                audioContextRef.current.resume();
+            }
+            return;
+        }
+        try {
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+        } catch (e) {
+            console.error("Web Audio API is not supported in this browser.", e);
+        }
+    }, []);
+
     const decode = (base64: string): Uint8Array => {
         const binaryString = atob(base64);
         const len = binaryString.length;
@@ -634,6 +650,7 @@ ${hotelListString}
     };
 
     const handleMicClick = () => {
+        initAudioContext(); // Ensure AudioContext is ready for potential TTS response
         if (isRecording) {
             stopRecording();
         } else {
@@ -643,7 +660,8 @@ ${hotelListString}
     
      const queueAndPlayTTS = useCallback(async (text: string) => {
         const ai = memoizedGenAI.current;
-        if (!ai || !text.trim()) return;
+        const ctx = audioContextRef.current;
+        if (!ai || !text.trim() || !ctx) return;
 
         try {
             const ttsResponse = await ai.models.generateContent({
@@ -662,15 +680,6 @@ ${hotelListString}
             const audioData = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
             if (audioData) {
-                if (!audioContextRef.current) {
-                    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-                    audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-                }
-                const ctx = audioContextRef.current;
-                if (ctx.state === 'suspended') {
-                    await ctx.resume();
-                }
-
                 const audioBytes = decode(audioData);
                 const audioBuffer = await decodeAudioData(audioBytes, ctx, 24000, 1);
                 
@@ -712,6 +721,9 @@ ${hotelListString}
         textInput: string = userInput,
         audioInput?: { data: string; mimeType: string; url: string }
     ) => {
+        if (isBotVoiceEnabled) {
+            initAudioContext();
+        }
         if ((!textInput.trim() && !audioInput) || isLoading || !activeChatId || !apiKey) return;
 
         const ai = memoizedGenAI.current;
