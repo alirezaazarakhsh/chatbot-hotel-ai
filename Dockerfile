@@ -11,11 +11,11 @@ RUN npm install --legacy-peer-deps
 # Copy project files
 COPY . .
 
-# Build the Next.js application
+# Build the Vite application
 RUN npm run build
 
-# Expose the port the app runs on
+# Expose the port
 EXPOSE 3001
 
-# Start the application
-CMD ["npm", "start"]
+# Start the app in production mode using Vite's preview server
+CMD ["npm", "run", "preview"]
