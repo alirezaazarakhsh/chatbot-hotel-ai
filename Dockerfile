@@ -1,21 +1,23 @@
-# Base image with the specified Node.js version
+# Base image
 FROM node:20.11.0
 
 # Set working directory
 WORKDIR /app
 
-# Install dependencies
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm install --legacy-peer-deps
 
-# Copy project files
+# Copy source code
 COPY . .
 
-# Build the Vite application
+# Build the app
 RUN npm run build
 
-# Expose the port
-EXPOSE 3001
+# Expose correct port
+EXPOSE 3000
 
-# Start the app in production mode using Vite's preview server
+# Run preview on port 3000
 CMD ["npm", "run", "preview"]
