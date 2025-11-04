@@ -25,7 +25,7 @@ const MoonIcon = () => (
 );
 
 const AttentionIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mr-3 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
     </svg>
 );
@@ -49,8 +49,19 @@ interface Hotel {
 }
 
 interface FetchError {
+  type: 'CORS' | 'Generic';
   message: string;
+  origin?: string;
 }
+
+// --- Mock Data for Development ---
+const MOCK_HOTELS: Hotel[] = [
+    { name: "هتل اسپیناس پالاس تهران", link: "https://safarnameh24.com/best-hotels/espinas-palace" },
+    { name: "هتل بزرگ شیراز", link: "https://safarnameh24.com/best-hotels/shiraz-grand" },
+    { name: "هتل عباسی اصفهان", link: "https://safarnameh24.com/best-hotels/abbasi-isfahan" },
+    { name: "هتل داریوش کیش", link: "https://safarnameh24.com/best-hotels/dariush-kish" },
+];
+
 
 // --- Helper Component for Rendering Links ---
 const RenderMessageWithLinks = ({ message }: { message: Message }) => {
@@ -116,33 +127,55 @@ const App: React.FC = () => {
   
   // --- Effects ---
   const fetchHotels = useCallback(async () => {
-    setIsFetchingHotels(true);
-    setFetchError(null);
-    try {
-        const response = await fetch('https://cps.safarnameh24.com/api/v1/hotel/hotels/chatbot/');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        if (Array.isArray(data)) {
-            setHotelList(data);
-        } else {
-            console.error("API response is not in the expected array format.", data);
-            throw new Error("API response is not in the expected format.");
-        }
-    } catch (error) {
-        console.error("Failed to fetch hotel list:", error);
-        setFetchError({
-            message: "خطا در برقراری ارتباط با سرور هتل‌ها. لطفا اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید."
-        });
-    } finally {
-        setIsFetchingHotels(false);
-    }
+      setIsFetchingHotels(true);
+      setFetchError(null);
+      try {
+          const response = await fetch('https://cps.safarnameh24.com/api/v1/hotel/hotels/chatbot/');
+          if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+          if (Array.isArray(data)) {
+              setHotelList(data);
+          } else {
+              console.error("API response is not in the expected array format.", data);
+              throw new Error("پاسخ دریافتی از سرور هتل‌ها در فرمت مورد انتظار نیست.");
+          }
+      } catch (error) {
+          console.error("Failed to fetch hotel list:", error);
+          if (error instanceof TypeError && error.message === 'Failed to fetch') {
+              setFetchError({
+                  type: 'CORS',
+                  message: "این خطا مربوط به تنظیمات سرور شما (CORS) است.",
+                  origin: window.location.origin
+              });
+          } else {
+              setFetchError({
+                  type: 'Generic',
+                  message: "خطا در برقراری ارتباط با سرور هتل‌ها. لطفا اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید."
+              });
+          }
+      } finally {
+          setIsFetchingHotels(false);
+      }
   }, []);
 
   useEffect(() => {
-    fetchHotels();
+    // Smartly decide to fetch real data or use mock data based on the environment
+    const isDevelopment = window.location.hostname.includes('localhost') || window.location.hostname.includes('scf.usercontent.goog');
 
+    if (isDevelopment) {
+        console.log("DEV MODE: Using mock hotel data to avoid CORS issues during development.");
+        setTimeout(() => { // Simulate network delay
+            setHotelList(MOCK_HOTELS);
+            setIsFetchingHotels(false);
+        }, 500);
+    } else {
+        // Production environment: fetch real data
+        fetchHotels();
+    }
+
+    // Load theme from localStorage
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
     if (savedTheme) {
       setTheme(savedTheme);
@@ -152,6 +185,7 @@ const App: React.FC = () => {
       setTheme('light');
     }
 
+    // Load conversations from localStorage
     const savedConversations = localStorage.getItem('conversations');
     if (savedConversations) {
       setConversations(JSON.parse(savedConversations));
@@ -497,18 +531,36 @@ const App: React.FC = () => {
             </button>
           </div>
            {fetchError && (
-              <div className="text-center mt-2 p-4 bg-red-100 dark:bg-red-900/50 rounded-lg border border-red-300 dark:border-red-700 text-red-900 dark:text-red-100">
-                  <div className="flex items-center justify-center mb-2">
+              <div className="text-right mt-4 p-4 bg-red-100 dark:bg-red-900/50 rounded-lg border border-red-300 dark:border-red-700 text-red-900 dark:text-red-100">
+                  <div className="flex items-center mb-3">
                       <AttentionIcon />
-                      <h3 className="font-bold text-lg text-red-800 dark:text-white">خطا در اتصال</h3>
+                      <h3 className="font-bold text-lg text-red-800 dark:text-white">مشکل در اتصال به سرور (خطای CORS)</h3>
                   </div>
-                  <p className="text-sm text-red-800 dark:text-red-200">{fetchError.message}</p>
+                  <div className="space-y-4 text-sm text-red-800 dark:text-red-200">
+                    <p>{fetchError.message}</p>
+                    {fetchError.type === 'CORS' && (
+                        <div>
+                            <p className="font-semibold mb-2">راه حل قطعی (برای تیم فنی):</p>
+                            <ol className="list-decimal list-inside space-y-2">
+                                <li>فایل <code className="bg-gray-200 dark:bg-neutral-700 px-1 rounded">settings.py</code> را در سرور جنگو باز کنید.</li>
+                                <li>لیست <code className="bg-gray-200 dark:bg-neutral-700 px-1 rounded">CORS_ALLOWED_ORIGINS</code> را پیدا کنید.</li>
+                                <li>آدرس دامنه زیر را به آن لیست اضافه کنید:</li>
+                                 <div className="text-center" dir="ltr">
+                                    <code className="block my-2 p-3 bg-gray-200 dark:bg-neutral-800 text-gray-800 dark:text-gray-100 rounded-md text-base select-all font-mono">
+                                        {fetchError.origin}
+                                    </code>
+                                </div>
+                                <li>تغییرات را ذخیره کرده و سرور را ری‌استارت کنید.</li>
+                            </ol>
+                        </div>
+                    )}
+                  </div>
                    <button 
                       onClick={fetchHotels} 
-                      className="mt-4 px-4 py-2 text-sm font-semibold bg-[#F30F26] text-white rounded-lg hover:bg-[#D90D22] transition-colors disabled:bg-gray-500"
+                      className="mt-6 w-full px-4 py-2.5 text-base font-bold bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-500"
                       disabled={isFetchingHotels}
                     >
-                     {isFetchingHotels ? 'در حال تلاش...' : 'تلاش مجدد'}
+                     {isFetchingHotels ? 'در حال تلاش...' : 'پس از اصلاح سرور، اینجا کلیک کنید'}
                    </button>
               </div>
             )}
