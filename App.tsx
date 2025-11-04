@@ -62,7 +62,7 @@ const StopGeneratingIcon = () => (
 
 const SettingsIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
 );
@@ -139,6 +139,13 @@ interface Conversation {
 
 type BotVoice = 'Kore' | 'Puck'; // Kore: Female-sounding, Puck: Male-sounding
 
+const availableFonts = [
+    { name: 'وزیرمتن', family: 'Vazirmatn' },
+    { name: 'ایران‌سنس', family: 'IRANSans' },
+    { name: 'صمیم', family: 'Samim' },
+    { name: 'یکان‌بخش', family: 'Yekan Bakh' },
+];
+
 // --- Helper Components ---
 const ToggleSwitch: React.FC<{ enabled: boolean; onChange: (enabled: boolean) => void; }> = ({ enabled, onChange }) => (
     <button
@@ -159,7 +166,9 @@ const SettingsModal: React.FC<{
     setIsBotVoiceEnabled: (enabled: boolean) => void;
     botVoice: BotVoice;
     setBotVoice: (voice: BotVoice) => void;
-}> = ({ isOpen, onClose, isBotVoiceEnabled, setIsBotVoiceEnabled, botVoice, setBotVoice }) => {
+    appFont: string;
+    setAppFont: (font: string) => void;
+}> = ({ isOpen, onClose, isBotVoiceEnabled, setIsBotVoiceEnabled, botVoice, setBotVoice, appFont, setAppFont }) => {
     if (!isOpen) return null;
 
     return (
@@ -184,7 +193,7 @@ const SettingsModal: React.FC<{
                      <div className="border-t border-neutral-200 dark:border-neutral-700"></div>
                      <div>
                         <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-2">صدای دستیار</label>
-                        <div className="flex space-x-2" role="radiogroup">
+                        <div className="flex gap-3" role="radiogroup">
                             <button
                                 role="radio"
                                 aria-checked={botVoice === 'Kore'}
@@ -205,6 +214,23 @@ const SettingsModal: React.FC<{
                             >
                                 آقا
                             </button>
+                        </div>
+                     </div>
+                     <div className="border-t border-neutral-200 dark:border-neutral-700"></div>
+                     <div>
+                        <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-2">فونت برنامه</label>
+                        <div className="grid grid-cols-2 gap-3">
+                           {availableFonts.map(font => (
+                                <button
+                                    key={font.family}
+                                    onClick={() => setAppFont(font.family)}
+                                    className={`py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
+                                        appFont === font.family ? 'bg-[#F30F26] text-white' : 'bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600'
+                                    }`}
+                                >
+                                    {font.name}
+                                </button>
+                            ))}
                         </div>
                      </div>
                 </div>
@@ -315,6 +341,9 @@ const App: React.FC = () => {
         const saved = localStorage.getItem('botVoice');
         return saved === 'Puck' ? 'Puck' : 'Kore'; // Default to 'Kore' (female)
     });
+    const [appFont, setAppFont] = useState<string>(() => {
+        return localStorage.getItem('appFont') || 'Vazirmatn';
+    });
     const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
     const endOfMessagesRef = useRef<HTMLDivElement>(null);
@@ -371,6 +400,16 @@ const App: React.FC = () => {
                 } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
                     setTheme('dark');
                 }
+                
+                // Font
+                const savedFont = localStorage.getItem('appFont');
+                if (savedFont) {
+                    setAppFont(savedFont);
+                    document.documentElement.style.setProperty('--app-font', `"${savedFont}"`);
+                } else {
+                    document.documentElement.style.setProperty('--app-font', `"Vazirmatn"`);
+                }
+
 
                 // Conversations
                 const savedConversations = localStorage.getItem('conversations');
@@ -416,6 +455,11 @@ const App: React.FC = () => {
         }
         localStorage.setItem('theme', theme);
     }, [theme]);
+    
+    useEffect(() => {
+        document.documentElement.style.setProperty('--app-font', `"${appFont}"`);
+        localStorage.setItem('appFont', appFont);
+    }, [appFont]);
 
     useEffect(() => {
         if (!isAppReady) return; 
@@ -737,7 +781,7 @@ ${hotelListString}
                             if (index === undefined) continue;
                             
                             const sentence = sentenceBuffer.substring(lastCut, index + 1);
-                            queueAndPlayTTS(sentence);
+                            await queueAndPlayTTS(sentence);
                             lastCut = index + 1;
                         }
                         sentenceBuffer = sentenceBuffer.substring(lastCut);
@@ -1059,6 +1103,8 @@ ${hotelListString}
                 setIsBotVoiceEnabled={setIsBotVoiceEnabled}
                 botVoice={botVoice}
                 setBotVoice={setBotVoice}
+                appFont={appFont}
+                setAppFont={setAppFont}
             />
         </div>
     );
