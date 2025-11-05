@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // --- SVG Icons ---
@@ -242,16 +243,6 @@ const SettingsModal: React.FC<{
                         <div className="flex gap-3" role="radiogroup">
                             <button
                                 role="radio"
-                                aria-checked={botVoice === 'Kore'}
-                                onClick={() => setBotVoice('Kore')}
-                                className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
-                                    botVoice === 'Kore' ? 'bg-[#F30F26] text-white' : 'bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600'
-                                }`}
-                            >
-                                خانم
-                            </button>
-                             <button
-                                role="radio"
                                 aria-checked={botVoice === 'Puck'}
                                 onClick={() => setBotVoice('Puck')}
                                 className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
@@ -259,6 +250,16 @@ const SettingsModal: React.FC<{
                                 }`}
                             >
                                 آقا
+                            </button>
+                             <button
+                                role="radio"
+                                aria-checked={botVoice === 'Kore'}
+                                onClick={() => setBotVoice('Kore')}
+                                className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-colors ${
+                                    botVoice === 'Kore' ? 'bg-[#F30F26] text-white' : 'bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600'
+                                }`}
+                            >
+                                خانم
                             </button>
                         </div>
                      </div>
@@ -421,9 +422,13 @@ const App: React.FC = () => {
             if (!hotelLinksResponse.ok) throw new Error('Failed to fetch hotel links');
             const hotelLinks = await hotelLinksResponse.json();
 
-            const combinedSettings = { ...settings, hotel_links: hotelLinks };
-            setBotSettings(combinedSettings);
-            return combinedSettings;
+            setBotSettings(prevSettings => ({
+                ...prevSettings,
+                ...settings,
+                hotel_links: hotelLinks,
+            }));
+            
+            return { ...botSettings, ...settings, hotel_links: hotelLinks };
         } catch (error) {
             console.error("Error fetching bot settings:", error);
             return null;
@@ -460,8 +465,13 @@ const App: React.FC = () => {
 
         const hotelContext = botSettings.hotel_links.length > 0 ?
             "--- START OF HOTEL LINKS ---\n" +
-            botSettings.hotel_links.map(h => `${h.name}: ${h.url}`).join('\n') +
-            "\n--- END OF HOTEL LINKS ---\nWhen a user asks for a hotel link, you MUST provide the exact URL from the list above. Do not create or guess any other URLs."
+            "Here is the definitive and ONLY list of hotels you have information about:\n" +
+            botSettings.hotel_links.map(h => `- ${h.name}: ${h.url}`).join('\n') +
+            "\n--- END OF HOTEL LINKS ---\n\n" +
+            "VERY IMPORTANT RULES FOR HOTEL LINKS:\n" +
+            "1. When a user asks for a hotel link, you MUST check if it exists in the list above.\n" +
+            "2. If the hotel is in the list, you MUST provide the exact URL provided. DO NOT modify, create, or guess any other URL.\n" +
+            "3. If the user asks for a hotel that is NOT in the list, you MUST clearly state that you do not have information or a link for that hotel and can only help with hotels in the provided list."
             : "";
 
         const augmentedSystemInstruction = [originalInstruction, faqContext, hotelContext].filter(Boolean).join('\n\n');
@@ -532,7 +542,7 @@ const App: React.FC = () => {
     useEffect(() => {
         const initializeApp = async () => {
             try {
-                const settings = await fetchBotSettings();
+                await fetchBotSettings();
                 await fetchFAQs();
 
                 // Theme
@@ -1011,7 +1021,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
                 <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-2">
-                     <div className="flex items-center space-x-2">
+                     <div className="flex items-center space-x-2 rtl:space-x-reverse">
                         <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="flex items-center justify-center flex-1 p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700">
                             {theme === 'light' ? <MoonIcon/> : <SunIcon/>}
                             <span className="mr-2">{theme === 'light' ? 'تاریک' : 'روشن'}</span>
