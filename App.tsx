@@ -266,7 +266,7 @@ const SettingsModal: React.FC<{
                      <div>
                         <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-2">فونت برنامه</label>
                         <div className="grid grid-cols-2 gap-3">
-                           {availableFonts.map(font => (
+                           {(availableFonts || []).map(font => (
                                 <button
                                     key={font.family}
                                     onClick={() => setAppFont(font.family)}
@@ -450,9 +450,25 @@ const App: React.FC = () => {
             text: msg.text
         }));
 
+        const originalInstruction = botSettings.system_instruction;
+
+        const faqContext = faqs.length > 0 ? 
+            "--- START OF FAQ ---\n" + 
+            faqs.map(f => `Question: ${f.question}\nAnswer: ${f.answer}`).join('\n\n') +
+            "\n--- END OF FAQ ---\nWhen a user asks a question that is in the FAQ, you must provide the answer from the FAQ." 
+            : "";
+
+        const hotelContext = botSettings.hotel_links.length > 0 ?
+            "--- START OF HOTEL LINKS ---\n" +
+            botSettings.hotel_links.map(h => `${h.name}: ${h.url}`).join('\n') +
+            "\n--- END OF HOTEL LINKS ---\nWhen a user asks for a hotel link, you MUST provide the exact URL from the list above. Do not create or guess any other URLs."
+            : "";
+
+        const augmentedSystemInstruction = [originalInstruction, faqContext, hotelContext].filter(Boolean).join('\n\n');
+        
         const requestBody: any = {
             conversation_history: conversationHistory,
-            hotel_links: botSettings.hotel_links
+            system_instruction: augmentedSystemInstruction,
         };
 
         if (message) requestBody.message = message;
