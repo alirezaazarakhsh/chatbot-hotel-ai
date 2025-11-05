@@ -1,6 +1,6 @@
 {
-  "name": "Web App Assistant",
-  "description": "An assistant that explains its capabilities and offers to build a web application in response to an out-of-scope request.",
+  "name": "چت بات هوشمند سفرنامه ۲۴",
+  "description": "چت بات هوشمند سفرنامه ۲۴ برای مشاوره قبل از خرید و انتخاب بهترین گزینه های سفر.",
   "requestFramePermissions": [
     "microphone"
   ]

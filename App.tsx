@@ -176,7 +176,7 @@ const FAQModal: React.FC<{
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center" onClick={onClose}>
+        <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm z-50 flex items-center justify-center" onClick={onClose}>
             <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center p-6 border-b border-neutral-200 dark:border-neutral-700">
                     <h2 className="text-xl font-bold">سوالات متداول</h2>
@@ -218,7 +218,7 @@ const SettingsModal: React.FC<{
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-40 flex items-center justify-center" onClick={onClose}>
+        <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm z-40 flex items-center justify-center" onClick={onClose}>
             <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold">تنظیمات</h2>
@@ -413,11 +413,17 @@ const App: React.FC = () => {
     // --- API Functions ---
     const fetchBotSettings = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/settings/`);
-            if (!response.ok) throw new Error('Failed to fetch bot settings');
-            const settings = await response.json();
-            setBotSettings(settings);
-            return settings;
+            const settingsResponse = await fetch(`${API_BASE_URL}/settings/`);
+            if (!settingsResponse.ok) throw new Error('Failed to fetch bot settings');
+            const settings = await settingsResponse.json();
+
+            const hotelLinksResponse = await fetch(`https://cps.safarnameh24.com/api/v1/hotel/hotels/chatbot/`);
+            if (!hotelLinksResponse.ok) throw new Error('Failed to fetch hotel links');
+            const hotelLinks = await hotelLinksResponse.json();
+
+            const combinedSettings = { ...settings, hotel_links: hotelLinks };
+            setBotSettings(combinedSettings);
+            return combinedSettings;
         } catch (error) {
             console.error("Error fetching bot settings:", error);
             return null;
@@ -445,7 +451,8 @@ const App: React.FC = () => {
         }));
 
         const requestBody: any = {
-            conversation_history: conversationHistory
+            conversation_history: conversationHistory,
+            hotel_links: botSettings.hotel_links
         };
 
         if (message) requestBody.message = message;
@@ -989,11 +996,11 @@ const App: React.FC = () => {
                 </div>
                 <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-2">
                      <div className="flex items-center space-x-2">
-                        <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="flex items-center justify-center w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700">
+                        <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="flex items-center justify-center flex-1 p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700">
                             {theme === 'light' ? <MoonIcon/> : <SunIcon/>}
-                            <span className="mr-2">{theme === 'light' ? 'حالت تاریک' : 'حالت روشن'}</span>
+                            <span className="mr-2">{theme === 'light' ? 'تاریک' : 'روشن'}</span>
                         </button>
-                        <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-center w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700">
+                        <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-center flex-1 p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700">
                             <SettingsIcon />
                             <span className="mr-2">تنظیمات</span>
                         </button>
