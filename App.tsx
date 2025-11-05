@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // --- SVG Icons ---
@@ -161,6 +163,37 @@ interface BotSettings {
 type BotVoice = 'Kore' | 'Puck';
 
 const API_BASE_URL = 'https://cps.safarnameh24.com/api/v1/chatbot';
+
+// --- Helper Functions ---
+function decode(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
+
 
 // --- Helper Components ---
 const ToggleSwitch: React.FC<{ enabled: boolean; onChange: (enabled: boolean) => void; }> = ({ enabled, onChange }) => (
@@ -455,6 +488,7 @@ const App: React.FC = () => {
     const audioContextRef = useRef<AudioContext | null>(null);
     const shouldStopGenerating = useRef(false);
     const nextStartTimeRef = useRef(0);
+    const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
     
     // --- API Functions ---
     const fetchBotSettings = async () => {
@@ -699,50 +733,34 @@ const App: React.FC = () => {
         }
     }, []);
 
-    const decodeAudioData = async (audioData: string, mimeType: string): Promise<string> => {
-        try {
-            const audioBytes = Uint8Array.from(atob(audioData), c => c.charCodeAt(0));
-            const audioBlob = new Blob([audioBytes], { type: mimeType || 'audio/mpeg' });
-            return URL.createObjectURL(audioBlob);
-        } catch (error) {
-            console.error("Error decoding audio data:", error);
-            throw error;
-        }
-    };
-
     const queueAndPlayTTS = useCallback(async (text: string) => {
-        if (!isBotVoiceEnabled || !text.trim()) return;
-
+        const ctx = audioContextRef.current;
+        if (!isBotVoiceEnabled || !text.trim() || !ctx) return;
+    
         try {
             const ttsResponse = await generateTTS(text);
             if (ttsResponse && ttsResponse.audio_data) {
-                const audioUrl = await decodeAudioData(ttsResponse.audio_data, ttsResponse.mime_type);
-                const audio = new Audio(audioUrl);
+                const audioBytes = decode(ttsResponse.audio_data);
+                const audioBuffer = await decodeAudioData(audioBytes, ctx, 24000, 1);
                 
-                const ctx = audioContextRef.current;
-                if (ctx) {
-                    const now = ctx.currentTime;
-                    const startTime = Math.max(now, nextStartTimeRef.current);
-                    
-                    const source = ctx.createMediaElementSource(audio);
-                    source.connect(ctx.destination);
-                    
-                    audio.currentTime = 0;
-                    const playPromise = audio.play();
-                    
-                    if (playPromise !== undefined) {
-                        playPromise.then(() => {
-                            nextStartTimeRef.current = startTime + audio.duration;
-                        }).catch(console.error);
-                    }
-                } else {
-                    audio.play().catch(console.error);
-                }
+                const source = ctx.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(ctx.destination);
+
+                source.addEventListener('ended', () => {
+                    audioSourcesRef.current.delete(source);
+                });
+    
+                const startTime = Math.max(ctx.currentTime, nextStartTimeRef.current);
+                source.start(startTime);
+                nextStartTimeRef.current = startTime + audioBuffer.duration;
+                audioSourcesRef.current.add(source);
             }
         } catch (ttsError) {
             console.error("Text-to-Speech error:", ttsError);
         }
     }, [isBotVoiceEnabled, botVoice]);
+
 
     const startRecording = async () => {
         try {
