@@ -1,7 +1,4 @@
-
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenAI, Chat, Part, Modality } from "@google/genai";
 
 // --- SVG Icons ---
 const SendArrowIcon = () => (
@@ -104,6 +101,11 @@ const PauseIcon = () => (
     </svg>
 );
 
+const FAQIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
 
 // --- New Loading Spinner Component ---
 const LoadingSpinner = () => (
@@ -114,7 +116,6 @@ const LoadingSpinner = () => (
         </div>
     </div>
 );
-
 
 // --- Types ---
 interface HotelLink {
@@ -134,18 +135,26 @@ interface Conversation {
   id: string;
   title: string;
   messages: Message[];
-  chatInstance?: Chat;
   lastUpdated: number;
 }
 
-type BotVoice = 'Kore' | 'Puck'; // Kore: Female-sounding, Puck: Male-sounding
+interface FAQ {
+  id: number;
+  question: string;
+  answer: string;
+}
 
-const availableFonts = [
-    { name: 'وزیرمتن', family: 'Vazirmatn' },
-    { name: 'ایران‌سنس', family: 'IRANSans' },
-    { name: 'صمیم', family: 'Samim' },
-    { name: 'یکان‌بخش', family: 'Yekan Bakh' },
-];
+interface BotSettings {
+  system_instruction: string;
+  default_voice: string;
+  is_bot_voice_enabled: boolean;
+  available_fonts: Array<{name: string, family: string}>;
+  hotel_links: HotelLink[];
+}
+
+type BotVoice = 'Kore' | 'Puck';
+
+const API_BASE_URL = 'https://cps.safarnameh24.com/api/v1/chatbot';
 
 // --- Helper Components ---
 const ToggleSwitch: React.FC<{ enabled: boolean; onChange: (enabled: boolean) => void; }> = ({ enabled, onChange }) => (
@@ -159,6 +168,41 @@ const ToggleSwitch: React.FC<{ enabled: boolean; onChange: (enabled: boolean) =>
     </button>
 );
 
+const FAQModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    faqs: FAQ[];
+}> = ({ isOpen, onClose, faqs }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center" onClick={onClose}>
+            <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center p-6 border-b border-neutral-200 dark:border-neutral-700">
+                    <h2 className="text-xl font-bold">سوالات متداول</h2>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700">
+                        <CloseIcon />
+                    </button>
+                </div>
+                <div className="overflow-y-auto p-6 max-h-[60vh]">
+                    <div className="space-y-4">
+                        {faqs.map((faq) => (
+                            <div key={faq.id} className="border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
+                                <h3 className="font-semibold text-lg text-[#F30F26] mb-2">{faq.question}</h3>
+                                <p className="text-neutral-700 dark:text-neutral-300">{faq.answer}</p>
+                            </div>
+                        ))}
+                        {faqs.length === 0 && (
+                            <div className="text-center py-8 text-neutral-500">
+                                هیچ سوال متداولی یافت نشد.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const SettingsModal: React.FC<{
     isOpen: boolean;
@@ -169,7 +213,8 @@ const SettingsModal: React.FC<{
     setBotVoice: (voice: BotVoice) => void;
     appFont: string;
     setAppFont: (font: string) => void;
-}> = ({ isOpen, onClose, isBotVoiceEnabled, setIsBotVoiceEnabled, botVoice, setBotVoice, appFont, setAppFont }) => {
+    availableFonts: Array<{name: string, family: string}>;
+}> = ({ isOpen, onClose, isBotVoiceEnabled, setIsBotVoiceEnabled, botVoice, setBotVoice, appFont, setAppFont, availableFonts }) => {
     if (!isOpen) return null;
 
     return (
@@ -322,8 +367,6 @@ const CustomAudioPlayer: React.FC<{ audioUrl: string }> = ({ audioUrl }) => {
 
 // --- Main App Component ---
 const App: React.FC = () => {
-    const [apiKey, setApiKey] = useState<string | null>(null);
-    const [apiKeyError, setApiKeyError] = useState<string | null>(null);
     const [isAppReady, setIsAppReady] = useState(false);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -331,16 +374,29 @@ const App: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [theme, setTheme] = useState<'light' | 'dark'>('dark');
     const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
-    const [hotelLinks, setHotelLinks] = useState<HotelLink[]>([]);
     const [isRecording, setIsRecording] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isFAQOpen, setIsFAQOpen] = useState(false);
+    const [faqs, setFaqs] = useState<FAQ[]>([]);
+    const [botSettings, setBotSettings] = useState<BotSettings>({
+        system_instruction: '',
+        default_voice: 'Kore',
+        is_bot_voice_enabled: true,
+        available_fonts: [
+            {name: 'وزیرمتن', family: 'Vazirmatn'},
+            {name: 'صمیم', family: 'Samim'},
+            {name: 'یکان بخ', family: 'Yekan Bakh'},
+            {name: 'ایران سنس', family: 'IRANSans'},
+        ],
+        hotel_links: []
+    });
     const [isBotVoiceEnabled, setIsBotVoiceEnabled] = useState(() => {
         const saved = localStorage.getItem('isBotVoiceEnabled');
         return saved ? JSON.parse(saved) : true;
     });
-     const [botVoice, setBotVoice] = useState<BotVoice>(() => {
+    const [botVoice, setBotVoice] = useState<BotVoice>(() => {
         const saved = localStorage.getItem('botVoice');
-        return saved === 'Puck' ? 'Puck' : 'Kore'; // Default to 'Kore' (female)
+        return saved === 'Puck' ? 'Puck' : 'Kore';
     });
     const [appFont, setAppFont] = useState<string>(() => {
         return localStorage.getItem('appFont') || 'Vazirmatn';
@@ -348,26 +404,96 @@ const App: React.FC = () => {
     const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
     const endOfMessagesRef = useRef<HTMLDivElement>(null);
-    const memoizedGenAI = useRef<GoogleGenAI | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     const audioContextRef = useRef<AudioContext | null>(null);
     const shouldStopGenerating = useRef(false);
     const nextStartTimeRef = useRef(0);
     
-    // --- API Key Check ---
-    useEffect(() => {
-        const key = process.env.API_KEY;
-        if (!key) {
-            setApiKeyError("کلید API تعریف نشده است. لطفاً فایل .env.local را ساخته و GEMINI_API_KEY را در آن تنظیم کنید.");
-        } else {
-            setApiKey(key);
-            memoizedGenAI.current = new GoogleGenAI({ 
-                apiKey: key
-            });
+    // --- API Functions ---
+    const fetchBotSettings = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/settings/`);
+            if (!response.ok) throw new Error('Failed to fetch bot settings');
+            const settings = await response.json();
+            setBotSettings(settings);
+            return settings;
+        } catch (error) {
+            console.error("Error fetching bot settings:", error);
+            return null;
         }
-    }, []);
+    };
 
+    const fetchFAQs = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/faqs/`);
+            if (!response.ok) throw new Error('Failed to fetch FAQs');
+            const faqsData = await response.json();
+            setFaqs(faqsData);
+        } catch (error) {
+            console.error("Error fetching FAQs:", error);
+        }
+    };
+
+    const sendChatMessage = async (message: string, audioData?: string, mimeType?: string) => {
+        const currentConvo = getActiveConversation();
+        if (!currentConvo) return null;
+
+        const conversationHistory = currentConvo.messages.map(msg => ({
+            sender: msg.sender,
+            text: msg.text
+        }));
+
+        const requestBody: any = {
+            conversation_history: conversationHistory
+        };
+
+        if (message) requestBody.message = message;
+        if (audioData && mimeType) {
+            requestBody.audio_data = audioData;
+            requestBody.mime_type = mimeType;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/message/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) throw new Error('Failed to send message');
+            const data = await response.json();
+            return data.response;
+        } catch (error) {
+            console.error("Error sending chat message:", error);
+            throw error;
+        }
+    };
+
+    const generateTTS = async (text: string) => {
+        if (!isBotVoiceEnabled) return null;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/tts/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text })
+            });
+
+            if (!response.ok) throw new Error('Failed to generate TTS');
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error("Error generating TTS:", error);
+            return null;
+        }
+    };
+
+    // --- App Initialization ---
     const startNewChat = useCallback(() => {
         const newId = `chat_${Date.now()}`;
         const newConversation: Conversation = {
@@ -380,19 +506,11 @@ const App: React.FC = () => {
         setActiveChatId(newId);
     }, []);
 
-    // --- Data Fetching and Initialization ---
     useEffect(() => {
-        if (!apiKey) return;
-
         const initializeApp = async () => {
             try {
-                // Fetch Hotel Links
-                const response = await fetch('https://cps.safarnameh24.com/api/v1/hotel/hotels/chatbot/');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const data: HotelLink[] = await response.json();
-                setHotelLinks(data);
+                const settings = await fetchBotSettings();
+                await fetchFAQs();
 
                 // Theme
                 const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
@@ -411,12 +529,11 @@ const App: React.FC = () => {
                     document.documentElement.style.setProperty('--app-font', `"Vazirmatn"`);
                 }
 
-
                 // Conversations
                 const savedConversations = localStorage.getItem('conversations');
                 if (savedConversations) {
                     const parsedConvos: Conversation[] = JSON.parse(savedConversations);
-                     if (parsedConvos.length > 0) {
+                    if (parsedConvos.length > 0) {
                         const weekInMs = 7 * 24 * 60 * 60 * 1000;
                         const now = Date.now();
                         const recentConvo = parsedConvos.find(c => (now - c.lastUpdated) < weekInMs);
@@ -425,7 +542,6 @@ const App: React.FC = () => {
                             setConversations(parsedConvos);
                             setActiveChatId(recentConvo.id);
                         } else {
-                            // If no recent conversations, start fresh with the old data as history
                             setConversations(parsedConvos);
                             startNewChat();
                         }
@@ -437,7 +553,7 @@ const App: React.FC = () => {
                 }
             } catch (error) {
                 console.error("Failed during app initialization:", error);
-                localStorage.removeItem('conversations'); // Clear potentially corrupt data
+                localStorage.removeItem('conversations');
                 startNewChat();
             } finally {
                 setIsAppReady(true);
@@ -445,7 +561,7 @@ const App: React.FC = () => {
         };
 
         initializeApp();
-    }, [apiKey, startNewChat]);
+    }, [startNewChat]);
 
     // --- Side Effects ---
     useEffect(() => {
@@ -472,11 +588,11 @@ const App: React.FC = () => {
         }
     }, [conversations, isAppReady]);
 
-     useEffect(() => {
+    useEffect(() => {
         localStorage.setItem('isBotVoiceEnabled', JSON.stringify(isBotVoiceEnabled));
     }, [isBotVoiceEnabled]);
 
-     useEffect(() => {
+    useEffect(() => {
         localStorage.setItem('botVoice', botVoice);
     }, [botVoice]);
 
@@ -484,31 +600,118 @@ const App: React.FC = () => {
         endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [conversations, activeChatId, isLoading]);
     
-    // --- System Instruction ---
-    const generateSystemInstruction = useCallback((hotels: HotelLink[]) => {
-        const hotelListString = hotels.length > 0 
-            ? hotels.map(h => `- ${h.name}: ${h.url}`).join('\n')
-            : "لیست در حال حاضر خالی است.";
-
-        return `شما یک دستیار هوشمند و متخصص هتل برای وب‌سایت "safarnameh24.com" هستید. وظیفه اصلی شما کمک به کاربران و هدایت آن‌ها به سایت سفرنامه ۲۴ است.
-
-قوانین کاری شما:
-1.  **پاسخگویی جامع:** به تمام سوالات کاربران در مورد هتل‌ها به طور کامل و با اطلاعات به‌روز پاسخ دهید.
-2.  **استفاده از لیست اختصاصی:** شما به یک لیست دقیق از هتل‌ها و لینک‌هایشان در سایت safarnameh24.com دسترسی دارید. همیشه برای ارائه لینک، از این لیست استفاده کنید. این مهم‌ترین وظیفه شماست.
-3.  **ارائه لینک مستقیم:** هرگاه کاربر در مورد یک هتل خاص که در لیست زیر وجود دارد سوال کرد، **باید** لینک دقیق آن را از لیست ارائه دهید.
-4.  **جستجوی کمکی:** اگر هتل در لیست نبود، از جستجوی گوگل برای پیدا کردن اطلاعات و لینک احتمالی در safarnameh24.com استفاده کنید.
-5.  **منبع اصلی:** همیشه safarnameh24.com را به عنوان منبع اصلی و پیشنهادی برای رزرو و کسب اطلاعات معرفی کنید.
-6.  **صداقت:** اگر اطلاعاتی را پیدا نمی‌کنید، به صراحت بگویید اما کاربر را به بازدید از سایت safarnameh24.com برای اطلاعات بیشتر تشویق کنید.
-7.  **تمرکز:** همیشه روی موضوعات مرتبط با هتل و سفر متمرکز بمانید.
-8.  **عدم نمایش منابع:** هرگز لیست منابع یا "Sources" را در پاسخ خود نمایش نده.
-
-**لیست هتل‌های شما:**
-${hotelListString}
-`;
+    // --- Audio Handling ---
+    const initAudioContext = useCallback(() => {
+        if (audioContextRef.current) {
+            if (audioContextRef.current.state === 'suspended') {
+                audioContextRef.current.resume();
+            }
+            return;
+        }
+        try {
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+        } catch (e) {
+            console.error("Web Audio API is not supported in this browser.", e);
+        }
     }, []);
 
+    const decodeAudioData = async (audioData: string, mimeType: string): Promise<string> => {
+        try {
+            const audioBytes = Uint8Array.from(atob(audioData), c => c.charCodeAt(0));
+            const audioBlob = new Blob([audioBytes], { type: mimeType || 'audio/mpeg' });
+            return URL.createObjectURL(audioBlob);
+        } catch (error) {
+            console.error("Error decoding audio data:", error);
+            throw error;
+        }
+    };
 
-    // --- Core Chat Functions ---
+    const queueAndPlayTTS = useCallback(async (text: string) => {
+        if (!isBotVoiceEnabled || !text.trim()) return;
+
+        try {
+            const ttsResponse = await generateTTS(text);
+            if (ttsResponse && ttsResponse.audio_data) {
+                const audioUrl = await decodeAudioData(ttsResponse.audio_data, ttsResponse.mime_type);
+                const audio = new Audio(audioUrl);
+                
+                const ctx = audioContextRef.current;
+                if (ctx) {
+                    const now = ctx.currentTime;
+                    const startTime = Math.max(now, nextStartTimeRef.current);
+                    
+                    const source = ctx.createMediaElementSource(audio);
+                    source.connect(ctx.destination);
+                    
+                    audio.currentTime = 0;
+                    const playPromise = audio.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            nextStartTimeRef.current = startTime + audio.duration;
+                        }).catch(console.error);
+                    }
+                } else {
+                    audio.play().catch(console.error);
+                }
+            }
+        } catch (ttsError) {
+            console.error("Text-to-Speech error:", ttsError);
+        }
+    }, [isBotVoiceEnabled]);
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) audioChunksRef.current.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => {
+                    const base64Audio = reader.result?.toString().split(',')[1];
+                    const audioDataUrl = reader.result as string;
+                    if (base64Audio && audioDataUrl) {
+                         handleSendMessage('', base64Audio, 'audio/webm', audioDataUrl);
+                    }
+                };
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+        } catch (error) {
+            console.error("Error accessing microphone:", error);
+            alert("امکان دسترسی به میکروفون وجود ندارد. لطفا دسترسی لازم را بدهید.");
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop();
+        }
+        setIsRecording(false);
+    };
+
+    const handleMicClick = () => {
+        initAudioContext();
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    };
+
+    // --- Conversation Management ---
     const getActiveConversation = () => conversations.find(c => c.id === activeChatId);
 
     const updateConversation = (id: string, updates: Partial<Conversation>) => {
@@ -544,15 +747,7 @@ ${hotelListString}
                 setActiveChatId(mostRecentConvo.id);
             }
         } else {
-            const newId = `chat_${Date.now()}`;
-            const newConversation: Conversation = {
-                id: newId,
-                title: 'گفتگوی جدید',
-                messages: [],
-                lastUpdated: Date.now(),
-            };
-            setConversations([newConversation]);
-            setActiveChatId(newId);
+            startNewChat();
         }
     };
 
@@ -562,155 +757,17 @@ ${hotelListString}
         setTimeout(() => setCopiedMessageId(null), 2000);
     };
 
-
-    // --- Audio Handling ---
-    const initAudioContext = useCallback(() => {
-        if (audioContextRef.current) {
-            if (audioContextRef.current.state === 'suspended') {
-                audioContextRef.current.resume();
-            }
-            return;
-        }
-        try {
-            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-            audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-        } catch (e) {
-            console.error("Web Audio API is not supported in this browser.", e);
-        }
-    }, []);
-
-    const decode = (base64: string): Uint8Array => {
-        const binaryString = atob(base64);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        return bytes;
-    };
-
-    const decodeAudioData = async (
-        data: Uint8Array,
-        ctx: AudioContext,
-        sampleRate: number,
-        numChannels: number
-    ): Promise<AudioBuffer> => {
-        const dataInt16 = new Int16Array(data.buffer);
-        const frameCount = dataInt16.length / numChannels;
-        const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-
-        for (let channel = 0; channel < numChannels; channel++) {
-            const channelData = buffer.getChannelData(channel);
-            for (let i = 0; i < frameCount; i++) {
-                channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
-            }
-        }
-        return buffer;
-    };
-
-    const startRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-            mediaRecorderRef.current = mediaRecorder;
-            audioChunksRef.current = [];
-
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) audioChunksRef.current.push(event.data);
-            };
-
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                
-                const reader = new FileReader();
-                reader.readAsDataURL(audioBlob);
-                reader.onloadend = () => {
-                    const base64Audio = reader.result?.toString().split(',')[1];
-                    const audioDataUrl = reader.result as string;
-                    if (base64Audio && audioDataUrl) {
-                         handleSendMessage('', { data: base64Audio, mimeType: 'audio/webm', url: audioDataUrl });
-                    }
-                };
-                stream.getTracks().forEach(track => track.stop());
-            };
-
-            mediaRecorder.start();
-            setIsRecording(true);
-        } catch (error) {
-            console.error("Error accessing microphone:", error);
-            alert("امکان دسترسی به میکروفون وجود ندارد. لطفا دسترسی لازم را بدهید.");
-        }
-    };
-
-    const stopRecording = () => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            mediaRecorderRef.current.stop();
-        }
-        setIsRecording(false);
-    };
-
-    const handleMicClick = () => {
-        initAudioContext(); // Ensure AudioContext is ready for potential TTS response
-        if (isRecording) {
-            stopRecording();
-        } else {
-            startRecording();
-        }
-    };
-    
-     const queueAndPlayTTS = useCallback(async (text: string) => {
-        const ai = memoizedGenAI.current;
-        const ctx = audioContextRef.current;
-        if (!ai || !text.trim() || !ctx) return;
-
-        try {
-            const ttsResponse = await ai.models.generateContent({
-                model: "gemini-2.5-flash-preview-tts",
-                contents: [{ parts: [{ text }] }],
-                config: {
-                    responseModalities: [Modality.AUDIO],
-                    speechConfig: {
-                        voiceConfig: {
-                            prebuiltVoiceConfig: { voiceName: botVoice }
-                        }
-                    }
-                },
-            });
-
-            const audioData = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
-            if (audioData) {
-                const audioBytes = decode(audioData);
-                const audioBuffer = await decodeAudioData(audioBytes, ctx, 24000, 1);
-                
-                const source = ctx.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(ctx.destination);
-                
-                const now = ctx.currentTime;
-                const startTime = Math.max(now, nextStartTimeRef.current);
-                source.start(startTime);
-                
-                nextStartTimeRef.current = startTime + audioBuffer.duration;
-            }
-        } catch (ttsError) {
-            console.error("Text-to-Speech error for sentence:", text, ttsError);
-        }
-    }, [botVoice]);
-
-
     const generateTitleForConversation = async (userText: string, botText: string) => {
-        const ai = memoizedGenAI.current;
-        if (!ai || !activeChatId) return;
+        if (!activeChatId) return;
         try {
-            const titleGenChat = ai.chats.create({
-                model: 'gemini-2.5-flash',
-                config: { systemInstruction: "بر اساس اولین پیام کاربر و پاسخ ربات، یک عنوان بسیار کوتاه (2 تا 4 کلمه) برای این گفتگو ایجاد کن." }
-            });
-            const titleResponse = await titleGenChat.sendMessage({ message: `کاربر: ${userText}\nربات: ${botText}` });
-            const newTitle = titleResponse.text.trim();
-            if (newTitle) {
-                updateConversation(activeChatId, { title: newTitle });
+            const titleResponse = await sendChatMessage(
+                `بر اساس اولین پیام کاربر و پاسخ ربات، یک عنوان بسیار کوتاه (2 تا 4 کلمه) برای این گفتگو ایجاد کن. پیام کاربر: ${userText} - پاسخ ربات: ${botText}`
+            );
+            if (titleResponse) {
+                const newTitle = titleResponse.trim();
+                if (newTitle) {
+                    updateConversation(activeChatId, { title: newTitle });
+                }
             }
         } catch(e) {
             console.error("Title generation failed", e);
@@ -719,16 +776,14 @@ ${hotelListString}
     
     const handleSendMessage = async (
         textInput: string = userInput,
-        audioInput?: { data: string; mimeType: string; url: string }
+        audioData?: string,
+        mimeType?: string,
+        audioUrl?: string
     ) => {
         if (isBotVoiceEnabled) {
             initAudioContext();
         }
-        if ((!textInput.trim() && !audioInput) || isLoading || !activeChatId || !apiKey) return;
-
-        const ai = memoizedGenAI.current;
-        const currentConvo = getActiveConversation();
-        if (!ai || !currentConvo) return;
+        if ((!textInput.trim() && !audioData) || isLoading || !activeChatId) return;
         
         setIsLoading(true);
         shouldStopGenerating.current = false;
@@ -738,7 +793,7 @@ ${hotelListString}
             id: `msg_${Date.now()}`,
             sender: 'user', 
             text: textInput,
-            audioUrl: audioInput?.url
+            audioUrl: audioUrl
         };
         const botMessage: Message = { 
             id: `msg_${Date.now() + 1}`,
@@ -747,69 +802,22 @@ ${hotelListString}
             isSpeaking: isBotVoiceEnabled,
         };
         
-        const isFirstMessage = currentConvo.messages.length === 0;
-        updateConversation(activeChatId, { messages: [...currentConvo.messages, userMessage, botMessage] });
+        const isFirstMessage = getActiveConversation()?.messages.length === 0;
+        updateConversation(activeChatId, { messages: [...getActiveConversation()!.messages, userMessage, botMessage] });
         
         try {
-            let chat = currentConvo.chatInstance;
-            if (!chat) {
-                 chat = ai.chats.create({
-                    model: 'gemini-2.5-flash',
-                    config: {
-                        systemInstruction: generateSystemInstruction(hotelLinks),
-                        tools: [{ googleSearch: {} }],
-                    },
-                });
-                updateConversation(activeChatId, { chatInstance: chat });
-            }
-
-            const messageParts: Part[] = [];
-            if (textInput.trim()) messageParts.push({ text: textInput.trim() });
-            if (audioInput) messageParts.push({ inlineData: { data: audioInput.data, mimeType: audioInput.mimeType } });
-
-            const result = await chat.sendMessageStream({ message: messageParts });
+            const botResponse = await sendChatMessage(textInput, audioData, mimeType);
             
             if (isBotVoiceEnabled) {
                 nextStartTimeRef.current = audioContextRef.current?.currentTime ?? 0;
-            }
-
-            let fullBotResponseText = '';
-            let sentenceBuffer = '';
-            
-            for await (const chunk of result) {
-                if (shouldStopGenerating.current) break;
-                
-                const chunkText = chunk.text;
-                if (chunkText) {
-                    fullBotResponseText += chunkText;
-                    updateBotMessage(botMessage.id, { text: fullBotResponseText });
-                    
-                    if (isBotVoiceEnabled) {
-                        sentenceBuffer += chunkText;
-                        const sentenceEndings = [...sentenceBuffer.matchAll(/[.!?।؟\n]/g)];
-                        let lastCut = 0;
-                        for (const match of sentenceEndings) {
-                            const index = match.index;
-                            if (index === undefined) continue;
-                            
-                            const sentence = sentenceBuffer.substring(lastCut, index + 1);
-                            await queueAndPlayTTS(sentence);
-                            lastCut = index + 1;
-                        }
-                        sentenceBuffer = sentenceBuffer.substring(lastCut);
-                    }
-                }
+                await queueAndPlayTTS(botResponse);
             }
             
-            if (isBotVoiceEnabled && sentenceBuffer.trim() && !shouldStopGenerating.current) {
-                await queueAndPlayTTS(sentenceBuffer.trim());
-            }
-            
-            updateBotMessage(botMessage.id, { isSpeaking: false });
+            updateBotMessage(botMessage.id, { text: botResponse, isSpeaking: false });
             updateConversation(activeChatId, { lastUpdated: Date.now() });
 
-            if (isFirstMessage && fullBotResponseText && !shouldStopGenerating.current) {
-                await generateTitleForConversation(userMessage.text, fullBotResponseText);
+            if (isFirstMessage && botResponse) {
+                await generateTitleForConversation(userMessage.text, botResponse);
             }
 
         } catch (error) {
@@ -840,11 +848,10 @@ ${hotelListString}
                 if (displayedText.length < text.length) {
                     const timeoutId = setTimeout(() => {
                         setDisplayedText(text.slice(0, displayedText.length + 1));
-                    }, 30); // Typing speed
+                    }, 30);
                     return () => clearTimeout(timeoutId);
                 }
             } else {
-                // If not generating, or finished, show the full text
                 if (displayedText !== text) {
                     setDisplayedText(text);
                 }
@@ -925,18 +932,6 @@ ${hotelListString}
             </div>
         );
     };
-    
-    if (apiKeyError) {
-        return (
-             <div className="flex items-center justify-center h-screen bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200">
-                <div className="bg-white dark:bg-neutral-800 p-8 rounded-lg shadow-2xl max-w-md text-center border border-red-500/50">
-                     <AttentionIcon />
-                    <h1 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">خطای پیکربندی</h1>
-                    <p className="text-lg">{apiKeyError}</p>
-                </div>
-            </div>
-        );
-    }
 
     if (!isAppReady) {
         return <LoadingSpinner />;
@@ -945,7 +940,7 @@ ${hotelListString}
     const activeConversation = getActiveConversation();
 
     return (
-        <div className="h-screen bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden">
+        <div className="h-screen bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden" style={{ fontFamily: appFont }}>
              {/* Backdrop for mobile */}
             {isSidebarOpen && (
                 <div 
@@ -1003,6 +998,10 @@ ${hotelListString}
                             <span className="mr-2">تنظیمات</span>
                         </button>
                      </div>
+                     <button onClick={() => setIsFAQOpen(true)} className="flex items-center justify-center w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700">
+                        <FAQIcon />
+                        <span className="mr-2">سوالات متداول</span>
+                    </button>
                 </div>
             </div>
 
@@ -1010,8 +1009,7 @@ ${hotelListString}
             <div className={`h-full flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'lg:mr-72' : ''}`}>
                  {/* Header */}
                 <div className="flex items-center justify-between p-2 sm:p-4 border-b border-neutral-200 dark:border-neutral-700">
-                     {/* Spacer to balance the title */}
-                    <div className="w-10 h-10"></div>
+                     <div className="w-10 h-10"></div>
                     <h1 className="text-lg font-semibold truncate mx-4 text-center">
                         {activeConversation?.title || 'گفتگوی جدید'}
                     </h1>
@@ -1117,6 +1115,12 @@ ${hotelListString}
                 setBotVoice={setBotVoice}
                 appFont={appFont}
                 setAppFont={setAppFont}
+                availableFonts={botSettings.available_fonts}
+            />
+            <FAQModal 
+                isOpen={isFAQOpen}
+                onClose={() => setIsFAQOpen(false)}
+                faqs={faqs}
             />
         </div>
     );
