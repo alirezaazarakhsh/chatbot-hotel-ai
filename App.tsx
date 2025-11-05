@@ -289,7 +289,7 @@ const SettingsModal: React.FC<{
     );
 };
 
-const WaveformBar: React.FC<{ height: number; isPlayed: boolean; sender: 'user' | 'bot' }> = ({ height, isPlayed, sender }) => {
+const WaveformBar: React.FC<{ height: number; isPlayed: boolean; sender: 'user' | 'bot'; key: number }> = ({ height, isPlayed, sender }) => {
     const isUser = sender === 'user';
     
     const playedColor = isUser ? '#FFFFFF' : 'rgb(38 38 38 / 1)'; // dark: '#FFFFFF'
@@ -506,31 +506,9 @@ const App: React.FC = () => {
             sender: msg.sender,
             text: msg.text
         }));
-
-        const originalInstruction = botSettings.system_instruction;
-
-        const faqContext = faqs.length > 0 ? 
-            "--- START OF FAQ ---\n" + 
-            faqs.map(f => `Question: ${f.question}\nAnswer: ${f.answer}`).join('\n\n') +
-            "\n--- END OF FAQ ---\nWhen a user asks a question that is in the FAQ, you must provide the answer from the FAQ." 
-            : "";
-
-        const hotelContext = botSettings.hotel_links.length > 0 ?
-            "--- START OF HOTEL LINKS ---\n" +
-            "Here is the definitive and ONLY list of hotels you have information about:\n" +
-            botSettings.hotel_links.map(h => `- ${h.name}: ${h.url}`).join('\n') +
-            "\n--- END OF HOTEL LINKS ---\n\n" +
-            "VERY IMPORTANT RULES FOR HOTEL LINKS:\n" +
-            "1. When a user asks for a hotel link, you MUST check if it exists in the list above.\n" +
-            "2. If the hotel is in the list, you MUST provide the exact URL provided. DO NOT modify, create, or guess any other URL.\n" +
-            "3. If the user asks for a hotel that is NOT in the list, you MUST clearly state that you do not have information or a link for that hotel and can only help with hotels in the provided list."
-            : "";
-
-        const augmentedSystemInstruction = [originalInstruction, faqContext, hotelContext].filter(Boolean).join('\n\n');
         
         const requestBody: any = {
-            conversation_history: conversationHistory,
-            system_instruction: augmentedSystemInstruction,
+            conversation_history: conversationHistory
         };
 
         if (message) requestBody.message = message;
@@ -566,7 +544,7 @@ const App: React.FC = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ text })
+                body: JSON.stringify({ text, voice: botVoice })
             });
 
             if (!response.ok) throw new Error('Failed to generate TTS');
@@ -744,7 +722,7 @@ const App: React.FC = () => {
         } catch (ttsError) {
             console.error("Text-to-Speech error:", ttsError);
         }
-    }, [isBotVoiceEnabled]);
+    }, [isBotVoiceEnabled, botVoice]);
 
     const startRecording = async () => {
         try {
@@ -821,11 +799,10 @@ const App: React.FC = () => {
     const handleDeleteConversation = (id: string) => {
         if (!window.confirm("آیا از حذف این گفتگو مطمئن هستید؟")) return;
 
-        setConversations(prevConversations => {
-            const updatedConversations = prevConversations.filter(c => c.id !== id);
+        setConversations(prev => {
+            const updatedConversations = prev.filter(c => c.id !== id);
 
             if (updatedConversations.length === 0) {
-                // Last conversation deleted, create a new one and make it active.
                 const newId = `chat_${Date.now()}`;
                 setActiveChatId(newId);
                 return [{
@@ -836,10 +813,9 @@ const App: React.FC = () => {
                 }];
             }
             
-            // If the deleted conversation was the active one, find a new active conversation.
             if (activeChatId === id) {
                 const mostRecentConvo = updatedConversations.reduce((latest, current) =>
-                    current.lastUpdated > latest.lastUpdated ? current : latest
+                    current.lastUpdated > latest.lastUpdated ? current : latest, updatedConversations[0]
                 );
                 setActiveChatId(mostRecentConvo.id);
             }
