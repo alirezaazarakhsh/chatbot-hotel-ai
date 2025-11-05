@@ -108,6 +108,12 @@ const FAQIcon = () => (
     </svg>
 );
 
+const PaperclipIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+    </svg>
+);
+
 // --- New Loading Spinner Component ---
 const LoadingSpinner = () => (
     <div className="flex items-center justify-center h-screen bg-white dark:bg-neutral-800">
@@ -129,6 +135,7 @@ interface Message {
   sender: 'user' | 'bot';
   text: string;
   audioUrl?: string;
+  imageUrl?: string;
   isSpeaking?: boolean;
   timestamp?: string;
 }
@@ -466,7 +473,7 @@ const App: React.FC = () => {
         ],
         hotel_links: [],
         welcome_title: 'چت بات هوشمند سفرنامه ۲۴',
-        welcome_message: 'به چت بات هوشمند سفرنامه ۲۴ خوش آمدید. اگر نیاز به مشاوره قبل از خرید یا انتخاب دارید، این چت بات نیاز شما را برطرف می‌کند. لطفا safarnameh24.com را دنبال کنید.',
+        welcome_message: 'به چت بات هوشمند سفرنامه ۲۴ خوش آمدید. می‌توانید در مورد هتل‌ها، جاذبه‌های گردشگری، و شهرهای دیدنی از من بپرسید و برای سفر خود مشورت بگیرید.',
         logo_url: 'http://cps.safarnameh24.com/media/images/logo/full-red-gray_mej9jEE.webp'
     });
     const [isBotVoiceEnabled, setIsBotVoiceEnabled] = useState(() => {
@@ -481,6 +488,7 @@ const App: React.FC = () => {
         return localStorage.getItem('appFont') || 'Vazirmatn';
     });
     const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+    const [imageToSend, setImageToSend] = useState<{ dataUrl: string; base64: string; mimeType: string; } | null>(null);
 
     const endOfMessagesRef = useRef<HTMLDivElement>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -489,6 +497,7 @@ const App: React.FC = () => {
     const shouldStopGenerating = useRef(false);
     const nextStartTimeRef = useRef(0);
     const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
     // --- API Functions ---
     const fetchBotSettings = async () => {
@@ -499,16 +508,7 @@ const App: React.FC = () => {
 
             const hotelLinksResponse = await fetch(`https://cps.safarnameh24.com/api/v1/hotel/hotels/chatbot/`);
             if (!hotelLinksResponse.ok) throw new Error('Failed to fetch hotel links');
-            const hotelLinksData: HotelLink[] = await hotelLinksResponse.json();
-            
-            const hotelLinks = hotelLinksData.map((link) => {
-                let finalUrl = link.url;
-                if (finalUrl && !finalUrl.startsWith('http')) {
-                    const path = finalUrl.startsWith('/') ? finalUrl : `/${finalUrl}`;
-                    finalUrl = `https://safarnameh24.com${path}`;
-                }
-                return { ...link, url: finalUrl };
-            });
+            const hotelLinks: HotelLink[] = await hotelLinksResponse.json();
 
             setBotSettings(prevSettings => ({
                 ...prevSettings,
@@ -534,12 +534,15 @@ const App: React.FC = () => {
         }
     };
 
-    const sendChatMessage = async (message: string, audioData?: string, mimeType?: string) => {
+    const sendChatMessage = async (
+        message: string, 
+        audioData?: string, 
+        mimeType?: string, 
+        imageData?: { base64: string; mimeType: string }
+    ) => {
         const currentConvo = getActiveConversation();
         if (!currentConvo) return null;
 
-        // The backend now manages the system instruction and context (FAQs, etc.).
-        // We only need to send the clean conversation history.
         const conversationHistory = currentConvo.messages.map(msg => ({
             sender: msg.sender,
             text: msg.text
@@ -553,6 +556,10 @@ const App: React.FC = () => {
         if (audioData && mimeType) {
             requestBody.audio_data = audioData;
             requestBody.mime_type = mimeType;
+        }
+        if (imageData) {
+            requestBody.image_data = imageData.base64;
+            requestBody.image_mime_type = imageData.mimeType;
         }
 
         try {
@@ -704,7 +711,7 @@ const App: React.FC = () => {
         endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [conversations, activeChatId, isLoading]);
     
-    // --- Audio Handling ---
+    // --- Audio & Image Handling ---
     const initAudioContext = useCallback(() => {
         if (audioContextRef.current) {
             if (audioContextRef.current.state === 'suspended') {
@@ -799,6 +806,24 @@ const App: React.FC = () => {
         }
     };
 
+    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const dataUrl = reader.result as string;
+                const base64 = dataUrl.split(',')[1];
+                setImageToSend({
+                    dataUrl,
+                    base64,
+                    mimeType: file.type
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+        event.target.value = '';
+    };
+
     // --- Conversation Management ---
     const getActiveConversation = () => conversations.find(c => c.id === activeChatId);
 
@@ -858,12 +883,11 @@ const App: React.FC = () => {
     const generateTitleForConversation = async (userText: string, botText: string) => {
         if (!activeChatId) return;
         try {
-            // This is a simplified request for title generation and doesn't need full history
             const titleResponse = await sendChatMessage(
-                `بر اساس اولین پیام کاربر و پاسخ ربات، یک عنوان بسیار کوتاه (2 تا 4 کلمه) برای این گفتگو ایجاد کن. پیام کاربر: ${userText} - پاسخ ربات: ${botText}`
+                `بر اساس این گفتگو، یک عنوان بسیار کوتاه (2 تا 4 کلمه) ایجاد کن: کاربر: "${userText}" - ربات: "${botText}"`
             );
             if (titleResponse) {
-                const newTitle = titleResponse.trim();
+                const newTitle = titleResponse.replace(/["*]/g, '').trim();
                 if (newTitle) {
                     updateConversation(activeChatId, { title: newTitle });
                 }
@@ -882,21 +906,27 @@ const App: React.FC = () => {
         if (isBotVoiceEnabled) {
             initAudioContext();
         }
-        if ((!textInput.trim() && !audioData) || isLoading || !activeChatId) return;
+        if ((!textInput.trim() && !audioData && !imageToSend) || isLoading || !activeChatId) return;
         
         setIsLoading(true);
         shouldStopGenerating.current = false;
         setUserInput('');
 
+        const imageDataPayload = imageToSend ? { base64: imageToSend.base64, mimeType: imageToSend.mimeType } : undefined;
         const now = new Date();
         const timestamp = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+        
         const userMessage: Message = { 
             id: `msg_${Date.now()}`,
             sender: 'user', 
             text: textInput,
             audioUrl: audioUrl,
+            imageUrl: imageToSend?.dataUrl,
             timestamp,
         };
+        
+        setImageToSend(null);
+
         const botMessage: Message = { 
             id: `msg_${Date.now() + 1}`,
             sender: 'bot', 
@@ -913,7 +943,7 @@ const App: React.FC = () => {
         }
         
         try {
-            const botResponse = await sendChatMessage(textInput, audioData, mimeType);
+            const botResponse = await sendChatMessage(textInput, audioData, mimeType, imageDataPayload);
             
             if (shouldStopGenerating.current) {
                 updateBotMessage(botMessage.id, { text: "پاسخ متوقف شد.", isSpeaking: false });
@@ -929,7 +959,7 @@ const App: React.FC = () => {
             updateConversation(activeChatId, { lastUpdated: Date.now() });
 
             if (isFirstMessage && botResponse) {
-                await generateTitleForConversation(userMessage.text, botResponse);
+                await generateTitleForConversation(userMessage.text || "عکس", botResponse);
             }
 
         } catch (error) {
@@ -950,7 +980,7 @@ const App: React.FC = () => {
     
     // --- Render Functions ---
     const RenderMessageWithLinks: React.FC<{ message: Message; isLoading: boolean; isLastMessage: boolean; }> = ({ message, isLoading, isLastMessage }) => {
-        const { id, text, audioUrl, sender, isSpeaking, timestamp } = message;
+        const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl } = message;
         const [displayedText, setDisplayedText] = useState('');
 
         const isBotGenerating = sender === 'bot' && isLastMessage && isLoading;
@@ -1014,6 +1044,7 @@ const App: React.FC = () => {
     
         return (
             <div className="group relative">
+                 {imageUrl && <img src={imageUrl} alt="User upload" className="rounded-lg mb-2 max-w-full h-auto" />}
                  {audioUrl && (
                     <CustomAudioPlayer audioUrl={audioUrl} timestamp={timestamp || ''} sender={sender}/>
                 )}
@@ -1165,7 +1196,26 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="p-4 border-t border-neutral-200 dark:border-neutral-700">
+                    {imageToSend && (
+                        <div className="relative mb-2 w-20 h-20">
+                            <img src={imageToSend.dataUrl} alt="Preview" className="w-full h-full object-cover rounded-lg"/>
+                            <button
+                                onClick={() => setImageToSend(null)}
+                                className="absolute -top-2 -right-2 bg-neutral-800 text-white rounded-full p-0.5 w-6 h-6 flex items-center justify-center"
+                                aria-label="Remove image"
+                            >
+                                <CloseIcon />
+                            </button>
+                        </div>
+                    )}
                     <div className="relative">
+                         <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileSelect}
+                            accept="image/*"
+                            className="hidden"
+                        />
                         <textarea
                             value={userInput}
                             onChange={(e) => setUserInput(e.target.value)}
@@ -1176,10 +1226,20 @@ const App: React.FC = () => {
                                 }
                             }}
                             placeholder="پیام خود را اینجا بنویسید..."
-                            className="w-full py-3 pr-10 pl-12 sm:py-4 sm:pr-12 sm:pl-14 text-base sm:text-lg bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none"
+                            className="w-full py-3 pr-12 pl-12 sm:py-4 sm:pr-14 sm:pl-14 text-base sm:text-lg bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none"
                             rows={1}
                             disabled={isLoading}
                         />
+                         <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2">
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isLoading || !!imageToSend}
+                                className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
+                                title="ارسال عکس"
+                            >
+                                <PaperclipIcon />
+                            </button>
+                        </div>
                          <div className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 flex items-center">
                             {isLoading ? (
                                  <button
@@ -1196,10 +1256,10 @@ const App: React.FC = () => {
                                 >
                                    <StopIcon />
                                 </button>
-                            ) : userInput.trim() ? (
+                            ) : userInput.trim() || imageToSend ? (
                                 <button
                                     onClick={() => handleSendMessage()}
-                                    disabled={isLoading || !userInput.trim()}
+                                    disabled={isLoading}
                                     className="p-2 rounded-full bg-[#F30F26] text-white disabled:bg-neutral-400 disabled:dark:bg-neutral-600 transition-colors"
                                 >
                                    <SendArrowIcon />
