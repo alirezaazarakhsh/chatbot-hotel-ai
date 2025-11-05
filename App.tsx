@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // --- SVG Icons ---
@@ -90,17 +91,18 @@ const SpeakingIcon = () => (
     </svg>
 );
 
-const PlayIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+const AudioPlayerPlayIcon = () => (
+    <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 16 16">
+        <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
     </svg>
 );
 
-const PauseIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
+const AudioPlayerPauseIcon = () => (
+    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M5.5 5.5A.5.5 0 0 1 6 6v4a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm4 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5z"/>
     </svg>
 );
+
 
 const FAQIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -130,6 +132,7 @@ interface Message {
   text: string;
   audioUrl?: string;
   isSpeaking?: boolean;
+  timestamp?: string;
 }
 
 interface Conversation {
@@ -286,14 +289,37 @@ const SettingsModal: React.FC<{
     );
 };
 
-const CustomAudioPlayer: React.FC<{ audioUrl: string }> = ({ audioUrl }) => {
+const WaveformBar: React.FC<{ height: number; isPlayed: boolean; sender: 'user' | 'bot' }> = ({ height, isPlayed, sender }) => {
+    const isUser = sender === 'user';
+    
+    const playedColor = isUser ? '#FFFFFF' : 'rgb(38 38 38 / 1)'; // dark: '#FFFFFF'
+    const unplayedColor = isUser ? 'rgba(255, 255, 255, 0.5)' : 'rgb(38 38 38 / 0.4)'; // dark: 'rgba(255, 255, 255, 0.5)'
+
+    return (
+        <div 
+            className="w-0.5 rounded-full" 
+            style={{ 
+                height: `${height}%`,
+                backgroundColor: isPlayed ? playedColor : unplayedColor
+            }} 
+        />
+    )
+};
+
+
+const CustomAudioPlayer: React.FC<{ audioUrl: string; timestamp: string; sender: 'user' | 'bot' }> = ({ audioUrl, timestamp, sender }) => {
     const audioRef = useRef<HTMLAudioElement | null>(null);
-    const progressBarRef = useRef<HTMLDivElement>(null);
+    const waveformContainerRef = useRef<HTMLDivElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     const [isReady, setIsReady] = useState(false);
+    const waveformBars = useRef<number[]>([]);
 
+    if (waveformBars.current.length === 0) {
+        waveformBars.current = Array.from({ length: 40 }, () => Math.floor(Math.random() * 80) + 20);
+    }
+    
     useEffect(() => {
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
@@ -305,7 +331,10 @@ const CustomAudioPlayer: React.FC<{ audioUrl: string }> = ({ audioUrl }) => {
         };
 
         const setAudioTime = () => setCurrentTime(audio.currentTime);
-        const onEnded = () => setIsPlaying(false);
+        const onEnded = () => {
+            setIsPlaying(false);
+            setCurrentTime(0); // Reset on end
+        };
         
         audio.addEventListener('loadeddata', setAudioData);
         audio.addEventListener('timeupdate', setAudioTime);
@@ -320,7 +349,8 @@ const CustomAudioPlayer: React.FC<{ audioUrl: string }> = ({ audioUrl }) => {
         };
     }, [audioUrl]);
 
-    const togglePlayPause = () => {
+    const togglePlayPause = (e: React.MouseEvent) => {
+        e.stopPropagation();
         if (!audioRef.current || !isReady) return;
         if (isPlaying) {
             audioRef.current.pause();
@@ -331,16 +361,16 @@ const CustomAudioPlayer: React.FC<{ audioUrl: string }> = ({ audioUrl }) => {
     };
 
     const formatTime = (time: number) => {
-        if (!isFinite(time) || time < 0) return '0:00';
+        if (!isFinite(time) || time < 0) return '00:00';
         const minutes = Math.floor(time / 60);
         const seconds = Math.floor(time % 60);
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     };
 
     const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!progressBarRef.current || !audioRef.current || !isFinite(duration)) return;
+        if (!waveformContainerRef.current || !audioRef.current || !isFinite(duration)) return;
         
-        const rect = progressBarRef.current.getBoundingClientRect();
+        const rect = waveformContainerRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const width = rect.width;
         const clickedPercent = Math.max(0, Math.min(1, x / width));
@@ -349,18 +379,31 @@ const CustomAudioPlayer: React.FC<{ audioUrl: string }> = ({ audioUrl }) => {
     };
 
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+    const isUser = sender === 'user';
+    
+    const playButtonBg = isUser ? 'bg-white/30' : 'bg-neutral-400/50 dark:bg-white/30';
+    const textColor = isUser ? 'text-white/80' : 'text-neutral-600 dark:text-white/70';
 
     return (
-        <div className="flex items-center space-x-3 w-full max-w-xs text-white mb-2">
-            <button onClick={togglePlayPause} disabled={!isReady} className="flex-shrink-0 disabled:opacity-50 focus:outline-none">
-                {isPlaying ? <PauseIcon /> : <PlayIcon />}
+        <div className="flex items-center gap-3 w-full max-w-[250px] sm:max-w-xs">
+            <button onClick={togglePlayPause} disabled={!isReady} className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-50 focus:outline-none transition-colors ${playButtonBg}`}>
+                {isPlaying ? <AudioPlayerPauseIcon /> : <AudioPlayerPlayIcon />}
             </button>
-            <div className="flex-grow flex items-center space-x-2">
-                 <div ref={progressBarRef} onClick={handleProgressClick} className="relative w-full h-1 bg-white/40 rounded-full cursor-pointer">
-                    <div className="absolute h-1 bg-white rounded-full" style={{ width: `${progress}%` }}></div>
-                    <div className="absolute w-3 h-3 bg-white rounded-full top-1/2 -translate-y-1/2" style={{ left: `calc(${progress}% - 6px)` }}></div>
+            <div className="flex flex-col flex-grow w-full">
+                <div 
+                    className="flex items-center h-8 gap-px cursor-pointer"
+                    onClick={handleProgressClick}
+                    ref={waveformContainerRef}
+                >
+                    {waveformBars.current.map((height, i) => {
+                        const barProgress = ((i + 1) / waveformBars.current.length) * 100;
+                        return <WaveformBar key={i} height={height} isPlayed={progress >= barProgress} sender={sender}/>;
+                    })}
                 </div>
-                 <span className="text-xs font-mono w-14">{formatTime(currentTime)} / {formatTime(duration)}</span>
+                <div className={`flex justify-between items-center text-xs mt-1 ${textColor}`}>
+                    <span>{isPlaying ? formatTime(currentTime) : formatTime(duration)}</span>
+                    <span>{timestamp}</span>
+                </div>
             </div>
         </div>
     );
@@ -420,7 +463,16 @@ const App: React.FC = () => {
 
             const hotelLinksResponse = await fetch(`https://cps.safarnameh24.com/api/v1/hotel/hotels/chatbot/`);
             if (!hotelLinksResponse.ok) throw new Error('Failed to fetch hotel links');
-            const hotelLinks = await hotelLinksResponse.json();
+            const hotelLinksData: HotelLink[] = await hotelLinksResponse.json();
+            
+            const hotelLinks = hotelLinksData.map((link) => {
+                let finalUrl = link.url;
+                if (finalUrl && !finalUrl.startsWith('http')) {
+                    const path = finalUrl.startsWith('/') ? finalUrl : `/${finalUrl}`;
+                    finalUrl = `https://safarnameh24.com${path}`;
+                }
+                return { ...link, url: finalUrl };
+            });
 
             setBotSettings(prevSettings => ({
                 ...prevSettings,
@@ -768,20 +820,32 @@ const App: React.FC = () => {
     
     const handleDeleteConversation = (id: string) => {
         if (!window.confirm("آیا از حذف این گفتگو مطمئن هستید؟")) return;
-    
-        const updatedConversations = conversations.filter(c => c.id !== id);
-    
-        if (updatedConversations.length > 0) {
-            setConversations(updatedConversations);
+
+        setConversations(prevConversations => {
+            const updatedConversations = prevConversations.filter(c => c.id !== id);
+
+            if (updatedConversations.length === 0) {
+                // Last conversation deleted, create a new one and make it active.
+                const newId = `chat_${Date.now()}`;
+                setActiveChatId(newId);
+                return [{
+                    id: newId,
+                    title: 'گفتگوی جدید',
+                    messages: [],
+                    lastUpdated: Date.now(),
+                }];
+            }
+            
+            // If the deleted conversation was the active one, find a new active conversation.
             if (activeChatId === id) {
                 const mostRecentConvo = updatedConversations.reduce((latest, current) =>
                     current.lastUpdated > latest.lastUpdated ? current : latest
                 );
                 setActiveChatId(mostRecentConvo.id);
             }
-        } else {
-            startNewChat();
-        }
+
+            return updatedConversations;
+        });
     };
 
     const handleCopy = (text: string, messageId: string) => {
@@ -822,17 +886,21 @@ const App: React.FC = () => {
         shouldStopGenerating.current = false;
         setUserInput('');
 
+        const now = new Date();
+        const timestamp = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
         const userMessage: Message = { 
             id: `msg_${Date.now()}`,
             sender: 'user', 
             text: textInput,
-            audioUrl: audioUrl
+            audioUrl: audioUrl,
+            timestamp,
         };
         const botMessage: Message = { 
             id: `msg_${Date.now() + 1}`,
             sender: 'bot', 
             text: '',
             isSpeaking: isBotVoiceEnabled,
+            timestamp,
         };
         
         const isFirstMessage = getActiveConversation()?.messages.length === 0;
@@ -871,7 +939,7 @@ const App: React.FC = () => {
     
     // --- Render Functions ---
     const RenderMessageWithLinks: React.FC<{ message: Message; isLoading: boolean; isLastMessage: boolean; }> = ({ message, isLoading, isLastMessage }) => {
-        const { id, text, audioUrl, sender, isSpeaking } = message;
+        const { id, text, audioUrl, sender, isSpeaking, timestamp } = message;
         const [displayedText, setDisplayedText] = useState('');
 
         const isBotGenerating = sender === 'bot' && isLastMessage && isLoading;
@@ -936,7 +1004,7 @@ const App: React.FC = () => {
         return (
             <div className="group relative">
                  {audioUrl && (
-                    <CustomAudioPlayer audioUrl={audioUrl} />
+                    <CustomAudioPlayer audioUrl={audioUrl} timestamp={timestamp || ''} sender={sender}/>
                 )}
                  {isSpeaking ? (
                     <div className="flex items-center space-x-2">
@@ -1060,7 +1128,7 @@ const App: React.FC = () => {
                             {activeConversation.messages.map((msg, index) => (
                                 <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`
-                                        max-w-[85%] md:max-w-xl p-4 rounded-2xl 
+                                        max-w-[85%] md:max-w-xl p-3 sm:p-4 rounded-2xl 
                                         ${msg.sender === 'user' ? 'bg-[#F30F26] text-white rounded-br-none' : 'bg-neutral-200 dark:bg-neutral-700 rounded-bl-none'}
                                         ${(isLoading && msg.sender === 'bot' && !msg.text && !msg.isSpeaking) ? 'animate-pulse' : ''}
                                     `}>
