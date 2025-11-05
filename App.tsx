@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // --- SVG Icons ---
@@ -538,31 +533,15 @@ const App: React.FC = () => {
         const currentConvo = getActiveConversation();
         if (!currentConvo) return null;
 
+        // The backend now manages the system instruction and context (FAQs, etc.).
+        // We only need to send the clean conversation history.
         const conversationHistory = currentConvo.messages.map(msg => ({
             sender: msg.sender,
             text: msg.text
         }));
-
-        let contextMessage = botSettings.system_instruction || 'شما یک دستیار هوشمند برای وبسایت سفرنامه ۲۴ هستید.';
-        
-        if (faqs.length > 0) {
-            const faqContext = faqs.map(f => `سوال: ${f.question}\nپاسخ: ${f.answer}`).join('\n\n');
-            contextMessage += `\n\nاز اطلاعات زیر که شامل سوالات متداول است برای پاسخ به کاربران استفاده کن:\n${faqContext}`;
-        }
-
-        if (botSettings.hotel_links.length > 0) {
-            const hotelContext = botSettings.hotel_links.map(h => `- ${h.name}: ${h.url}`).join('\n');
-            contextMessage += `\n\nهمچنین، این لینک‌های هتل‌های مهم هستند:\n${hotelContext}`;
-        }
-        
-        const historyForAPI = [
-            { sender: 'user', text: contextMessage },
-            { sender: 'bot', text: 'اطلاعات دریافت شد. آماده پاسخگویی هستم.' },
-            ...conversationHistory
-        ];
         
         const requestBody: any = {
-            conversation_history: historyForAPI,
+            conversation_history: conversationHistory,
         };
 
         if (message) requestBody.message = message;
@@ -580,7 +559,10 @@ const App: React.FC = () => {
                 body: JSON.stringify(requestBody)
             });
 
-            if (!response.ok) throw new Error('Failed to send message');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to send message');
+            }
             const data = await response.json();
             return data.response;
         } catch (error) {
@@ -871,6 +853,7 @@ const App: React.FC = () => {
     const generateTitleForConversation = async (userText: string, botText: string) => {
         if (!activeChatId) return;
         try {
+            // This is a simplified request for title generation and doesn't need full history
             const titleResponse = await sendChatMessage(
                 `بر اساس اولین پیام کاربر و پاسخ ربات، یک عنوان بسیار کوتاه (2 تا 4 کلمه) برای این گفتگو ایجاد کن. پیام کاربر: ${userText} - پاسخ ربات: ${botText}`
             );
@@ -917,13 +900,22 @@ const App: React.FC = () => {
             timestamp,
         };
         
-        const isFirstMessage = getActiveConversation()?.messages.length === 0;
-        updateConversation(activeChatId, { messages: [...getActiveConversation()!.messages, userMessage, botMessage] });
+        const currentConvo = getActiveConversation();
+        const isFirstMessage = currentConvo?.messages.length === 0;
+        
+        if(currentConvo) {
+            updateConversation(activeChatId, { messages: [...currentConvo.messages, userMessage, botMessage] });
+        }
         
         try {
             const botResponse = await sendChatMessage(textInput, audioData, mimeType);
             
-            if (isBotVoiceEnabled) {
+            if (shouldStopGenerating.current) {
+                updateBotMessage(botMessage.id, { text: "پاسخ متوقف شد.", isSpeaking: false });
+                return;
+            }
+
+            if (isBotVoiceEnabled && botResponse) {
                 nextStartTimeRef.current = audioContextRef.current?.currentTime ?? 0;
                 await queueAndPlayTTS(botResponse);
             }
@@ -1021,13 +1013,15 @@ const App: React.FC = () => {
                     <CustomAudioPlayer audioUrl={audioUrl} timestamp={timestamp || ''} sender={sender}/>
                 )}
                  {isSpeaking ? (
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 rtl:space-x-reverse">
                         <SpeakingIcon />
-                        <p className="whitespace-pre-wrap">
-                            {parseTextToComponents(textToDisplay).map((part, index) => (
-                                <React.Fragment key={index}>{part}</React.Fragment>
-                            ))}
-                        </p>
+                         {textToDisplay && (
+                            <p className="whitespace-pre-wrap">
+                                {parseTextToComponents(textToDisplay).map((part, index) => (
+                                    <React.Fragment key={index}>{part}</React.Fragment>
+                                ))}
+                            </p>
+                         )}
                     </div>
                  ) : textToDisplay ? (
                     <p className="whitespace-pre-wrap">
