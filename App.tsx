@@ -543,10 +543,12 @@ const App: React.FC = () => {
         const currentConvo = getActiveConversation();
         if (!currentConvo) return null;
 
-        const conversationHistory = currentConvo.messages.map(msg => ({
-            sender: msg.sender,
-            text: msg.text
-        }));
+        const conversationHistory = currentConvo.messages
+            .filter(msg => msg.text && msg.text.trim() !== "")
+            .map(msg => ({
+                sender: msg.sender,
+                text: msg.text
+            }));
         
         const requestBody: any = {
             conversation_history: conversationHistory,
