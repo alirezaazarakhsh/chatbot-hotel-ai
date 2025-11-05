@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // --- SVG Icons ---
@@ -180,20 +182,20 @@ const FAQModal: React.FC<{
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm z-50 flex items-center justify-center" onClick={onClose}>
-            <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center p-6 border-b border-neutral-200 dark:border-neutral-700">
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[calc(100vh-2rem)]" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center p-4 border-b border-neutral-200 dark:border-neutral-700 flex-shrink-0">
                     <h2 className="text-xl font-bold">سوالات متداول</h2>
                     <button onClick={onClose} className="p-1 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700">
                         <CloseIcon />
                     </button>
                 </div>
-                <div className="overflow-y-auto p-6 max-h-[60vh]">
+                <div className="overflow-y-auto p-4">
                     <div className="space-y-4">
                         {faqs.map((faq) => (
                             <div key={faq.id} className="border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
                                 <h3 className="font-semibold text-lg text-[#F30F26] mb-2">{faq.question}</h3>
-                                <p className="text-neutral-700 dark:text-neutral-300">{faq.answer}</p>
+                                <p className="text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">{faq.answer}</p>
                             </div>
                         ))}
                         {faqs.length === 0 && (
@@ -506,9 +508,27 @@ const App: React.FC = () => {
             sender: msg.sender,
             text: msg.text
         }));
+
+        let contextMessage = botSettings.system_instruction || 'شما یک دستیار هوشمند برای وبسایت سفرنامه ۲۴ هستید.';
+        
+        if (faqs.length > 0) {
+            const faqContext = faqs.map(f => `سوال: ${f.question}\nپاسخ: ${f.answer}`).join('\n\n');
+            contextMessage += `\n\nاز اطلاعات زیر که شامل سوالات متداول است برای پاسخ به کاربران استفاده کن:\n${faqContext}`;
+        }
+
+        if (botSettings.hotel_links.length > 0) {
+            const hotelContext = botSettings.hotel_links.map(h => `- ${h.name}: ${h.url}`).join('\n');
+            contextMessage += `\n\nهمچنین، این لینک‌های هتل‌های مهم هستند:\n${hotelContext}`;
+        }
+        
+        const historyForAPI = [
+            { sender: 'user', text: contextMessage },
+            { sender: 'bot', text: 'اطلاعات دریافت شد. آماده پاسخگویی هستم.' },
+            ...conversationHistory
+        ];
         
         const requestBody: any = {
-            conversation_history: conversationHistory
+            conversation_history: historyForAPI,
         };
 
         if (message) requestBody.message = message;
@@ -544,7 +564,7 @@ const App: React.FC = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ text, voice: botVoice })
+                body: JSON.stringify({ text, voice_name: botVoice })
             });
 
             if (!response.ok) throw new Error('Failed to generate TTS');
