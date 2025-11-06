@@ -166,7 +166,7 @@ interface BotSettings {
 
 type BotVoice = 'Kore' | 'Puck';
 
-const API_BASE_URL = 'https://cps.safarnameh24.com/api/v1/chatbot';
+const API_BASE_URL = '/api/v1/chatbot';
 
 // --- Helper Functions ---
 function decode(base64: string): Uint8Array {
@@ -485,7 +485,7 @@ const App: React.FC = () => {
         return saved === 'Puck' ? 'Puck' : 'Kore';
     });
     const [appFont, setAppFont] = useState<string>(() => {
-        return localStorage.getItem('appFont') || 'Vazirmatn';
+        return localStorage.getItem('appFont') || 'Yekan Bakh';
     });
     const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
     const [imageToSend, setImageToSend] = useState<{ dataUrl: string; base64: string; mimeType: string; } | null>(null);
@@ -506,7 +506,7 @@ const App: React.FC = () => {
             if (!settingsResponse.ok) throw new Error('Failed to fetch bot settings');
             const settings = await settingsResponse.json();
 
-            const hotelLinksResponse = await fetch(`https://cps.safarnameh24.com/api/v1/hotel/hotels/chatbot/`);
+            const hotelLinksResponse = await fetch(`/api/v1/hotel/hotels/chatbot/`);
             if (!hotelLinksResponse.ok) throw new Error('Failed to fetch hotel links');
             const hotelLinks: HotelLink[] = await hotelLinksResponse.json();
 
@@ -619,6 +619,19 @@ const App: React.FC = () => {
         setActiveChatId(newId);
     }, []);
 
+    const updateBotMessage = useCallback((botMessageId: string, updates: Partial<Message>) => {
+        if (!activeChatId) return;
+        setConversations(prev =>
+            prev.map(c => {
+                if (c.id !== activeChatId) return c;
+                const updatedMessages = c.messages.map(m =>
+                    m.id === botMessageId ? { ...m, ...updates } : m
+                );
+                return { ...c, messages: updatedMessages };
+            })
+        );
+    }, [activeChatId]);
+
     useEffect(() => {
         const initializeApp = async () => {
             try {
@@ -639,7 +652,7 @@ const App: React.FC = () => {
                     setAppFont(savedFont);
                     document.documentElement.style.setProperty('--app-font', `"${savedFont}"`);
                 } else {
-                    document.documentElement.style.setProperty('--app-font', `"Vazirmatn"`);
+                    document.documentElement.style.setProperty('--app-font', `"Yekan Bakh"`);
                 }
 
                 // Conversations
@@ -729,9 +742,12 @@ const App: React.FC = () => {
         }
     }, []);
 
-    const queueAndPlayTTS = useCallback(async (text: string) => {
+    const queueAndPlayTTS = useCallback(async (text: string, messageId: string) => {
         const ctx = audioContextRef.current;
-        if (!isBotVoiceEnabled || !text.trim() || !ctx) return;
+        if (!isBotVoiceEnabled || !text.trim() || !ctx) {
+            updateBotMessage(messageId, { isSpeaking: false });
+            return;
+        }
     
         try {
             const ttsResponse = await generateTTS(text);
@@ -745,17 +761,24 @@ const App: React.FC = () => {
 
                 source.addEventListener('ended', () => {
                     audioSourcesRef.current.delete(source);
+                    if (audioSourcesRef.current.size === 0) {
+                        nextStartTimeRef.current = 0;
+                    }
+                    updateBotMessage(messageId, { isSpeaking: false });
                 });
     
                 const startTime = Math.max(ctx.currentTime, nextStartTimeRef.current);
                 source.start(startTime);
                 nextStartTimeRef.current = startTime + audioBuffer.duration;
                 audioSourcesRef.current.add(source);
+            } else {
+                updateBotMessage(messageId, { isSpeaking: false });
             }
         } catch (ttsError) {
             console.error("Text-to-Speech error:", ttsError);
+            updateBotMessage(messageId, { isSpeaking: false });
         }
-    }, [isBotVoiceEnabled, botVoice]);
+    }, [isBotVoiceEnabled, botVoice, updateBotMessage]);
 
 
     const startRecording = async () => {
@@ -835,18 +858,6 @@ const App: React.FC = () => {
         );
     };
 
-    const updateBotMessage = useCallback((botMessageId: string, updates: Partial<Message>) => {
-        if (!activeChatId) return;
-        setConversations(prev =>
-            prev.map(c => {
-                if (c.id !== activeChatId) return c;
-                const updatedMessages = c.messages.map(m =>
-                    m.id === botMessageId ? { ...m, ...updates } : m
-                );
-                return { ...c, messages: updatedMessages };
-            })
-        );
-    }, [activeChatId]);
     
     const handleDeleteConversation = (id: string) => {
         if (!window.confirm("آیا از حذف این گفتگو مطمئن هستید؟")) return;
@@ -951,13 +962,16 @@ const App: React.FC = () => {
                 updateBotMessage(botMessage.id, { text: "پاسخ متوقف شد.", isSpeaking: false });
                 return;
             }
+            
+            updateBotMessage(botMessage.id, { text: botResponse });
 
             if (isBotVoiceEnabled && botResponse) {
                 nextStartTimeRef.current = audioContextRef.current?.currentTime ?? 0;
-                await queueAndPlayTTS(botResponse);
+                await queueAndPlayTTS(botResponse, botMessage.id);
+            } else {
+                updateBotMessage(botMessage.id, { isSpeaking: false });
             }
             
-            updateBotMessage(botMessage.id, { text: botResponse, isSpeaking: false });
             updateConversation(activeChatId, { lastUpdated: Date.now() });
 
             if (isFirstMessage && botResponse) {
