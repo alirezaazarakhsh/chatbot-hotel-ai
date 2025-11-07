@@ -15,6 +15,9 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           configure: (proxy, _options) => {
             proxy.on('proxyReq', (proxyReq) => {
+              // The server is likely rejecting requests based on Origin/Referer headers.
+              // We set them to match the target host to bypass these checks during local development.
+              proxyReq.setHeader('Origin', 'https://cps.safarnameh24.com');
               proxyReq.setHeader('Referer', 'https://cps.safarnameh24.com/');
             });
           },
