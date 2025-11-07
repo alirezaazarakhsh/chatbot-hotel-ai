@@ -13,9 +13,10 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: 'https://cps.safarnameh24.com',
           changeOrigin: true,
-          secure: false, // Bypasses SSL certificate validation for the proxy
-          // Use the 'headers' option for a more direct and reliable way to set headers,
-          // ensuring the server's security policy (checking Origin/Referer) is satisfied.
+          secure: false,
+          // Replace the 'configure' hook with a more direct 'headers' object.
+          // This is a more reliable way to set static headers for the proxy to
+          // satisfy the server's security policy (checking Origin/Referer).
           headers: {
             'Origin': 'https://cps.safarnameh24.com',
             'Referer': 'https://cps.safarnameh24.com/',

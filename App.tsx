@@ -1,7 +1,8 @@
 
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-// --- CONSTANTS ---
+// --- CONSTANTS & CONFIG ---
 const API_BASE_URL = '/api/v1/chatbot';
 const DEFAULT_FONT = 'Yekan Bakh';
 const AVAILABLE_FONTS = [
@@ -11,83 +12,37 @@ const AVAILABLE_FONTS = [
     { name: 'بی نازنین', name_en: 'B Nazanin', family: 'B Nazanin' },
 ];
 
-// --- I18N ---
+// --- I18N TRANSLATIONS ---
 const translations = {
     en: {
-        newChat: 'New Chat',
-        chatHistory: 'Chat History',
-        settings: 'Settings',
-        faq: 'FAQ',
-        newConversationTitle: 'New Chat',
-        welcomeMessageTitle: 'Safarnameh24 Smart Chatbot',
+        newChat: 'New Chat', chatHistory: 'Chat History', settings: 'Settings', faq: 'FAQ',
+        newConversationTitle: 'New Chat', welcomeMessageTitle: 'Safarnameh24 AI Chatbot',
         welcomeMessageBody: 'Welcome! Ask me about hotels, restaurants, tourist attractions, and more to plan your trip.',
-        messagePlaceholder: 'Write your message...',
-        stopGenerating: 'Stop Generating',
-        sendMessage: 'Send Message',
-        recordMessage: 'Record Message',
-        designedBy: 'Design & Develop by',
-        confirmDelete: 'Are you sure you want to delete this conversation?',
-        settingsTitle: 'Settings',
-        voiceResponse: 'Assistant Voice Response',
-        showMap: 'Show Map',
-        assistantVoice: 'Assistant Voice',
-        male: 'Male',
-        female: 'Female',
-        appFont: 'App Font',
-        faqTitle: 'Frequently Asked Questions',
-        noFaqs: 'No frequently asked questions found.',
-        errorOccurred: 'An unexpected error occurred.',
-        errorMessage: 'An error occurred: ',
-        responseStopped: 'Response stopped.',
-        micAccessDenied: 'Microphone access denied.',
-        language: 'Language',
-        persian: 'فارسی',
-        english: 'English',
-        copied: 'Copied!',
-        sendImage: 'Send Image',
-        imagePreview: 'Image Preview',
-        removeImage: 'Remove image',
-        theme: 'Theme',
-        light: 'Light',
-        dark: 'Dark',
+        messagePlaceholder: 'Write your message...', stopGenerating: 'Stop Generating', sendMessage: 'Send Message',
+        recordMessage: 'Record Message', designedBy: 'Design & Develop by', confirmDelete: 'Are you sure you want to delete this conversation?',
+        settingsTitle: 'Settings', voiceResponse: 'Assistant Voice Response', showMap: 'Show Map',
+        assistantVoice: 'Assistant Voice', male: 'Male', female: 'Female', appFont: 'App Font',
+        faqTitle: 'Frequently Asked Questions', noFaqs: 'No frequently asked questions found.',
+        errorOccurred: 'An unexpected error occurred.', errorMessage: 'An error occurred: ',
+        responseStopped: 'Response stopped.', micAccessDenied: 'Microphone access denied.', language: 'Language',
+        persian: 'فارسی', english: 'English', copied: 'Copied!', sendImage: 'Send Image',
+        imagePreview: 'Image Preview', removeImage: 'Remove image', theme: 'Theme', light: 'Light', dark: 'Dark',
+        chatbotTitle: 'Safarnameh24 AI Chatbot',
     },
     fa: {
-        newChat: 'گفتگوی جدید',
-        chatHistory: 'تاریخچه گفتگو',
-        settings: 'تنظیمات',
-        faq: 'سوالات متداول',
-        newConversationTitle: 'گفتگوی جدید',
-        welcomeMessageTitle: 'چت بات هوشمند سفرنامه ۲۴',
+        newChat: 'گفتگوی جدید', chatHistory: 'تاریخچه گفتگو', settings: 'تنظیمات', faq: 'سوالات متداول',
+        newConversationTitle: 'گفتگوی جدید', welcomeMessageTitle: 'چت بات هوشمند سفرنامه ۲۴',
         welcomeMessageBody: 'به چت بات هوشمند سفرنامه ۲۴ خوش آمدید. می‌توانید در مورد هتل‌ها، رستوران‌ها، شهرها، روستاها و جاذبه‌های گردشگری از من بپرسید و برای سفر خود مشورت بگیرید.',
-        messagePlaceholder: 'پیام خود را اینجا بنویسید...',
-        stopGenerating: 'توقف پاسخ',
-        sendMessage: 'ارسال پیام',
-        recordMessage: 'ضبط پیام',
-        designedBy: 'طراحی و توسعه توسط',
-        confirmDelete: 'آیا از حذف این گفتگو مطمئن هستید؟',
-        settingsTitle: 'تنظیمات',
-        voiceResponse: 'پاسخ صوتی دستیار',
-        showMap: 'نمایش نقشه',
-        assistantVoice: 'صدای دستیار',
-        male: 'آقا',
-        female: 'خانم',
-        appFont: 'فونت برنامه',
-        faqTitle: 'سوالات متداول',
-        noFaqs: 'هیچ سوال متداولی یافت نشد.',
-        errorOccurred: 'یک خطای غیرمنتظره رخ داد.',
-        errorMessage: 'متاسفانه مشکلی پیش آمده: ',
-        responseStopped: 'پاسخ متوقف شد.',
-        micAccessDenied: 'امکان دسترسی به میکروفون وجود ندارد.',
-        language: 'زبان',
-        persian: 'فارسی',
-        english: 'English',
-        copied: 'کپی شد!',
-        sendImage: 'ارسال عکس',
-        imagePreview: 'پیش‌نمایش عکس',
-        removeImage: 'حذف عکس',
-        theme: 'حالت نمایش',
-        light: 'روشن',
-        dark: 'تاریک',
+        messagePlaceholder: 'پیام خود را اینجا بنویسید...', stopGenerating: 'توقف پاسخ', sendMessage: 'ارسال پیام',
+        recordMessage: 'ضبط پیام', designedBy: 'طراحی و توسعه توسط', confirmDelete: 'آیا از حذف این گفتگو مطمئن هستید؟',
+        settingsTitle: 'تنظیمات', voiceResponse: 'پاسخ صوتی دستیار', showMap: 'نمایش نقشه',
+        assistantVoice: 'صدای دستیار', male: 'آقا', female: 'خانم', appFont: 'فونت برنامه',
+        faqTitle: 'سوالات متداول', noFaqs: 'هیچ سوال متداولی یافت نشد.',
+        errorOccurred: 'یک خطای غیرمنتظره رخ داد.', errorMessage: 'متاسفانه مشکلی پیش آمده: ',
+        responseStopped: 'پاسخ متوقف شد.', micAccessDenied: 'امکان دسترسی به میکروفون وجود ندارد.', language: 'زبان',
+        persian: 'فارسی', english: 'English', copied: 'کپی شد!', sendImage: 'ارسال عکس',
+        imagePreview: 'پیش‌نمایش عکس', removeImage: 'حذف عکس', theme: 'حالت نمایش', light: 'روشن', dark: 'تاریک',
+        chatbotTitle: 'چت بات هوشمند سفرنامه ۲۴',
     }
 };
 
@@ -96,7 +51,7 @@ type Theme = 'light' | 'dark';
 
 // --- TYPES ---
 interface HotelLink { name: string; url: string; }
-interface Message { id: string; sender: 'user' | 'bot'; text: string; audioUrl?: string; imageUrl?: string; isSpeaking?: boolean; timestamp?: string; }
+interface Message { id: string; sender: 'user' | 'bot'; text: string; audioUrl?: string; imageUrl?: string; isSpeaking?: boolean; timestamp?: string; isCancelled?: boolean; }
 interface Conversation { id: string; title: string; messages: Message[]; lastUpdated: number; }
 interface FAQ { id: number; question: string; answer: string; }
 interface BotSettings {
@@ -201,7 +156,8 @@ const Icons = {
     Paperclip: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>),
 };
 
-// --- UI COMPONENTS ---
+// --- REFACTORED UI COMPONENTS ---
+
 const LoadingSpinner = () => (
     <div className="flex items-center justify-center h-screen bg-white dark:bg-neutral-800">
         <div className="relative">
@@ -325,11 +281,12 @@ const SettingsModal: React.FC<{
     }));
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 flex items-center justify-center p-4" onClick={onClose}>
+// FIX: The `onClick` handler expects a function that can receive a MouseEvent. The `onClose` prop function does not expect any arguments. Wrapping `onClose` in an arrow function `() => onClose()` resolves this potential type mismatch, which likely caused the error reported on this line.
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 flex items-center justify-center p-4" onClick={() => onClose()}>
             <div className="bg-white dark:bg-[#1C1C1C] border dark:border-neutral-700 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center p-4 border-b dark:border-neutral-800">
                     <h2 className="text-xl font-bold text-black dark:text-white">{t('settingsTitle')}</h2>
-                    <button onClick={onClose} className="p-1.5 text-neutral-500 dark:text-neutral-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700"><Icons.Close /></button>
+                    <button onClick={() => onClose()} className="p-1.5 text-neutral-500 dark:text-neutral-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700"><Icons.Close /></button>
                 </div>
                 <div className="p-6 space-y-6 text-black dark:text-white">
                     <div className="flex items-center justify-between"><label className="font-medium text-neutral-700 dark:text-neutral-300">{t('voiceResponse')}</label><ToggleSwitch enabled={isBotVoiceEnabled} onChange={setIsBotVoiceEnabled} /></div>
@@ -383,11 +340,10 @@ const SettingsModal: React.FC<{
 };
 
 const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; isLastMessage: boolean; isMapEnabled: boolean; onCopy: (text: string, id: string) => void; copiedMessageId: string | null; t: (key: keyof typeof translations.en) => string; }> = ({ message, isLoading, isLastMessage, isMapEnabled, onCopy, copiedMessageId, t }) => {
-    const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl } = message;
+    const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl, isCancelled } = message;
     const [displayedText, setDisplayedText] = useState('');
     const [location, setLocation] = useState<string | null>(null);
-
-    const isBotGenerating = sender === 'bot' && isLastMessage && isLoading;
+    const animationFrameRef = useRef<number>();
 
     useEffect(() => {
         if (sender === 'bot' && text) {
@@ -397,13 +353,38 @@ const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; isLastMe
     }, [text, sender]);
 
     useEffect(() => {
-        if (isBotGenerating) {
-            const timer = setTimeout(() => { setDisplayedText(prev => text.slice(0, prev.length + 1)); }, 10);
-            return () => clearTimeout(timer);
-        } else {
+        const isBotGenerating = sender === 'bot' && isLastMessage && isLoading;
+
+        if (!isBotGenerating || isCancelled) {
             setDisplayedText(text);
+            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            return;
         }
-    }, [isBotGenerating, text]);
+
+        let currentText = '';
+        let startTime: number | null = null;
+        const typingSpeed = 50; // characters per second
+
+        const animate = (timestamp: number) => {
+            if (startTime === null) startTime = timestamp;
+            const elapsedTime = timestamp - startTime;
+            const charsToShow = Math.floor(elapsedTime / (1000 / typingSpeed));
+            
+            if (currentText.length < text.length) {
+                currentText = text.substring(0, charsToShow);
+                setDisplayedText(currentText);
+                animationFrameRef.current = requestAnimationFrame(animate);
+            } else {
+                 setDisplayedText(text);
+            }
+        };
+
+        animationFrameRef.current = requestAnimationFrame(animate);
+
+        return () => {
+            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        };
+    }, [text, sender, isLastMessage, isLoading, isCancelled]);
 
     const parseTextToComponents = (inputText: string): React.ReactNode[] => {
         const cleanText = inputText.replace(/\(مکان:\s*([^)]+)\)/g, '').replace(/\(Location:\s*([^)]+)\)/g, '').trim();
@@ -460,16 +441,27 @@ const useAppLogic = (language: Language) => {
                 const faqsData = await apiService.fetchFAQs(); setFaqs(faqsData);
                 if (conversations.length === 0) startNewChat();
                 else setActiveChatId(conversations.reduce((a, b) => a.lastUpdated > b.lastUpdated ? a : b).id);
-            } catch (error) { console.error("Initialization failed:", error); if (conversations.length === 0) startNewChat();
+            } catch (error) { 
+                console.error("Initialization failed:", error); 
+                if (conversations.length === 0) startNewChat();
+                else if(activeChatId === null) setActiveChatId(conversations[0]?.id || null);
             } finally { setIsAppReady(true); }
         };
         initializeApp();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const updateBotMessage = useCallback((botMessageId: string, updates: Partial<Message>) => {
+    const updateBotMessage = useCallback((botMessageId: string, updates: Partial<Message> | ((prevMessage: Message) => Partial<Message>)) => {
         if (!activeChatId) return;
-        setConversations(prev => prev.map(c => c.id !== activeChatId ? c : { ...c, messages: c.messages.map(m => m.id === botMessageId ? { ...m, ...updates } : m) }));
+        setConversations(prev => prev.map(c => {
+            if (c.id !== activeChatId) return c;
+            const newMessages = c.messages.map(m => {
+                if (m.id !== botMessageId) return m;
+                const newUpdates = typeof updates === 'function' ? updates(m) : updates;
+                return { ...m, ...newUpdates };
+            });
+            return { ...c, messages: newMessages };
+        }));
     }, [activeChatId, setConversations]);
     
     const handleSendMessage = useCallback(async (
@@ -496,46 +488,16 @@ const useAppLogic = (language: Language) => {
 
         try {
             const conversationHistory = [...currentConvo.messages, userMessage]
-              .filter(msg => msg.text || msg.audioUrl) // Only include messages with content for history
+              .filter(msg => msg.text || msg.audioUrl)
               .map(msg => ({ 
                   sender: msg.sender, 
                   text: msg.text || (msg.audioUrl ? `[${language === 'fa' ? 'پیام صوتی' : 'audio message'}]` : '')
               }));
             
-            // CONTEXT BUILDING
             const hotelContext = `[HOTEL LIST]\n${hotelLinks.map(h => `- ${h.name}: ${h.url}`).join('\n')}`;
             const faqContext = `[FAQ]\n${faqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n')}`;
-            const userLang = language;
             
-            const systemPrompt = `
-[ROLE & GOAL]
-You are a world-class, friendly, and expert travel assistant for Safarnameh24, an Iranian travel agency. Your primary goal is to provide helpful, accurate, and concise information to users planning their travels in and around Iran.
-
-[CORE KNOWLEDGE & DATA]
-You have access to two critical pieces of information. YOU MUST USE THIS DATA STRICTLY.
-1.  ${hotelContext}
-2.  ${faqContext}
-
-[RULES & BEHAVIOR]
-1.  **Language Detection:** The user is currently interacting in ${userLang}. However, you MUST detect the language of the *user's last message* and respond in THAT language. You can seamlessly switch between Persian and English within a conversation.
-2.  **Hotel Links:**
-    -   When a user asks for a hotel, check the [HOTEL LIST].
-    -   If the hotel is in the list, provide its EXACT URL. DO NOT create or guess URLs.
-    -   If the hotel is NOT in the list, you MUST state: "متاسفانه این هتل در سفرنامه ۲۴ موجود نیست." (in Persian) or "Unfortunately, this hotel is not available on Safarnameh24." (in English).
-    -   NEVER provide links from any other website besides safarnameh24.com.
-    -   Present URLs as clean, raw text (e.g., https://...). DO NOT use Markdown formatting like [text](url).
-3.  **FAQ Usage:** Use the [FAQ] to answer relevant questions (e.g., working hours).
-4.  **Location Recognition:** When you identify a specific, real-world location (hotel, attraction, city), you MUST embed its coordinates in your response using this EXACT format: (Location: LAT,LONG). Example: (Location: 35.7601,51.4118).
-5.  **Image Analysis:**
-    -   If the user's message includes an image, analyze it.
-    -   If it's a travel-related location (landmark, hotel, city), describe it.
-    -   If it's not travel-related, state that it's not relevant to travel planning.
-6.  **Persona:** Be polite, helpful, and professional. Keep answers concise.
-
-[USER'S CURRENT MESSAGE]
-The user's message is: "${text}"
-${image ? '[The user has also uploaded an image for context.]' : ''}
-`;
+            const systemPrompt = `[ROLE & GOAL]\nYou are a world-class, friendly, and expert travel assistant for Safarnameh24, an Iranian travel agency. Your primary goal is to provide helpful, accurate, and concise information to users planning their travels in and around Iran.\n\n[CONTEXTUAL DATA]\nYou have access to two critical pieces of information. YOU MUST USE THIS DATA STRICTLY.\n1. ${hotelContext}\n2. ${faqContext}\n\n[RESPONSE RULES - VERY IMPORTANT]\n1. **Language Detection:** You MUST detect the language of the user's last message and respond in THAT language. You can seamlessly switch between Persian and English.\n2. **Hotel Links (CRITICAL):**\n   - When a user asks for a hotel, find it in the [HOTEL LIST].\n   - If the hotel is IN the list, you MUST provide its EXACT URL from the list.\n   - If the hotel is NOT in the list, you MUST state: "متاسفانه این هتل در سفرنامه ۲۴ موجود نیست." (in Persian) or "Unfortunately, this hotel is not available on Safarnameh24." (in English).\n   - **ABSOLUTELY NEVER** provide links from any other website (like a hotel's own site). Only use safarnameh24.com links from the provided context.\n   - **FORMATTING:** Present URLs as clean, raw text (e.g., https://...). **DO NOT** use Markdown formatting like [text](url).\n3. **FAQ Usage:** Use the [FAQ] data to answer relevant questions (e.g., about working hours).\n4. **Location Recognition:** When you identify a specific, real-world location (hotel, attraction, city), you MUST embed its coordinates in your response using this EXACT format: (Location: LAT,LONG). Example: (Location: 35.7601,51.4118).\n5. **Image Analysis:** If the user's message includes an image, analyze it. If it's a travel-related location (landmark, hotel, city), describe it. If it's not travel-related, state that it's not relevant to travel planning.\n6. **Persona:** Be polite, helpful, and professional. Keep answers concise.`;
 
             const payload = {
                 message: text,
@@ -557,8 +519,12 @@ ${image ? '[The user has also uploaded an image for context.]' : ''}
                  if (titleResponse) setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, title: titleResponse.replace(/["*]/g, '').trim() } : c));
             }
         } catch (error) {
-            if ((error as Error).name === 'AbortError') updateBotMessage(botMessage.id, { text: t('responseStopped'), isSpeaking: false });
-            else { const errorMessage = error instanceof Error ? error.message : t('errorOccurred'); updateBotMessage(botMessage.id, { text: `${t('errorMessage')}${errorMessage}`, isSpeaking: false }); }
+            if ((error as Error).name === 'AbortError') {
+                updateBotMessage(botMessage.id, (prev) => ({ text: prev.text, isSpeaking: false, isCancelled: true }));
+            } else { 
+                const errorMessage = error instanceof Error ? error.message : t('errorOccurred'); 
+                updateBotMessage(botMessage.id, { text: `${t('errorMessage')}${errorMessage}`, isSpeaking: false }); 
+            }
         } finally { setIsLoading(false); }
     }, [conversations, activeChatId, isLoading, setConversations, language, t]);
 
@@ -622,7 +588,7 @@ const App: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     
     useEffect(() => { document.documentElement.style.setProperty('--app-font', `"${appFont}"`); }, [appFont]);
-    useEffect(() => { endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [conversations, activeChatId, isLoading]);
+    useEffect(() => { endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [conversations, activeChatId, isLoading, userInput]);
     useEffect(() => {
         document.documentElement.lang = language;
         document.documentElement.dir = language === 'fa' ? 'rtl' : 'ltr';
@@ -754,7 +720,10 @@ const App: React.FC = () => {
             <main className={mainClass}>
                 <header className="flex items-center justify-between p-2 sm:p-4 border-b bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 flex-shrink-0">
                     <div className="lg:hidden">{language === 'fa' ? <div className="w-10 h-10"></div> : <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Menu /></button>}</div>
-                    <h1 className="text-lg font-semibold truncate mx-4 text-center flex-1">{activeConversation?.title || t('newConversationTitle')}</h1>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-lg font-semibold truncate">{t('chatbotTitle')}</h1>
+                        <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div>
+                    </div>
                     <div className="lg:hidden">{language === 'fa' ? <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Menu /></button> : <div className="w-10 h-10"></div>}</div>
                     <div className="hidden lg:block">{language === 'fa' ? <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Menu /></button> : null}</div>
                 </header>
@@ -769,6 +738,17 @@ const App: React.FC = () => {
                                     </div>
                                 </div>
                             ))}
+                             {isLoading && activeConversation.messages[activeConversation.messages.length - 1]?.sender === 'bot' && (
+                                <div className="flex justify-start">
+                                    <div className="max-w-[85%] md:max-w-2xl p-3 sm:p-4 rounded-2xl bg-white dark:bg-neutral-700">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 bg-neutral-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                            <div className="w-2 h-2 bg-neutral-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                            <div className="w-2 h-2 bg-neutral-500 rounded-full animate-bounce"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <div ref={endOfMessagesRef} />
                         </div>
                     ) : (
@@ -786,7 +766,7 @@ const App: React.FC = () => {
                          <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden"/>
                         <textarea value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} placeholder={t('messagePlaceholder')} className="w-full py-3 ps-12 pe-20 sm:pe-24 text-base bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none" rows={1} disabled={isLoading} />
                          <div className={`absolute top-1/2 -translate-y-1/2 ${language === 'fa' ? 'right-2 sm:right-3' : 'left-2 sm:left-3'}`}><button onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!imageToSend} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50" title={t('sendImage')}><Icons.Paperclip /></button></div>
-                         <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 ${language === 'fa' ? 'left-2 sm:left-3' : 'right-2 sm:right-3'}`}>
+                         <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 ${language === 'fa' ? 'left-2 sm:left-3' : 'right-2 sm:left-3'}`}>
                             {isLoading ? (<button onClick={handleStopGenerating} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700" title={t('stopGenerating')}><Icons.StopGenerating /></button>)
                              : (
                                 <>
