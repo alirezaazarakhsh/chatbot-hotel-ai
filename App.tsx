@@ -1,14 +1,98 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // --- CONSTANTS ---
 const API_BASE_URL = '/api/v1/chatbot';
 const DEFAULT_FONT = 'Yekan Bakh';
 const AVAILABLE_FONTS = [
-    { name: 'یکان بخ', family: 'Yekan Bakh' },
-    { name: 'وزیرمتن', family: 'Vazirmatn' },
-    { name: 'صمیم', family: 'Samim' },
-    { name: 'بی نازنین', family: 'B Nazanin' },
+    { name: 'یکان بخ', name_en: 'Yekan Bakh', family: 'Yekan Bakh' },
+    { name: 'وزیرمتن', name_en: 'Vazirmatn', family: 'Vazirmatn' },
+    { name: 'صمیم', name_en: 'Samim', family: 'Samim' },
+    { name: 'بی نازنین', name_en: 'B Nazanin', family: 'B Nazanin' },
 ];
+
+// --- I18N ---
+const translations = {
+    en: {
+        newChat: 'New Chat',
+        chatHistory: 'Chat History',
+        settings: 'Settings',
+        faq: 'FAQ',
+        newConversationTitle: 'New Chat',
+        welcomeMessageTitle: 'Safarnameh24 Smart Chatbot',
+        welcomeMessageBody: 'Welcome! Ask me about hotels, restaurants, tourist attractions, and more to plan your trip.',
+        messagePlaceholder: 'Write your message...',
+        stopGenerating: 'Stop Generating',
+        sendMessage: 'Send Message',
+        recordMessage: 'Record Message',
+        designedBy: 'Design & Develop by',
+        confirmDelete: 'Are you sure you want to delete this conversation?',
+        settingsTitle: 'Settings',
+        voiceResponse: 'Assistant Voice Response',
+        showMap: 'Show Map',
+        assistantVoice: 'Assistant Voice',
+        male: 'Male',
+        female: 'Female',
+        appFont: 'App Font',
+        faqTitle: 'Frequently Asked Questions',
+        noFaqs: 'No frequently asked questions found.',
+        errorOccurred: 'An unexpected error occurred.',
+        errorMessage: 'An error occurred: ',
+        responseStopped: 'Response stopped.',
+        micAccessDenied: 'Microphone access denied.',
+        language: 'Language',
+        persian: 'فارسی',
+        english: 'English',
+        copied: 'Copied!',
+        sendImage: 'Send Image',
+        imagePreview: 'Image Preview',
+        removeImage: 'Remove image',
+        theme: 'Theme',
+        light: 'Light',
+        dark: 'Dark',
+    },
+    fa: {
+        newChat: 'گفتگوی جدید',
+        chatHistory: 'تاریخچه گفتگو',
+        settings: 'تنظیمات',
+        faq: 'سوالات متداول',
+        newConversationTitle: 'گفتگوی جدید',
+        welcomeMessageTitle: 'چت بات هوشمند سفرنامه ۲۴',
+        welcomeMessageBody: 'به چت بات هوشمند سفرنامه ۲۴ خوش آمدید. می‌توانید در مورد هتل‌ها، رستوران‌ها، شهرها، روستاها و جاذبه‌های گردشگری از من بپرسید و برای سفر خود مشورت بگیرید.',
+        messagePlaceholder: 'پیام خود را اینجا بنویسید...',
+        stopGenerating: 'توقف پاسخ',
+        sendMessage: 'ارسال پیام',
+        recordMessage: 'ضبط پیام',
+        designedBy: 'طراحی و توسعه توسط',
+        confirmDelete: 'آیا از حذف این گفتگو مطمئن هستید؟',
+        settingsTitle: 'تنظیمات',
+        voiceResponse: 'پاسخ صوتی دستیار',
+        showMap: 'نمایش نقشه',
+        assistantVoice: 'صدای دستیار',
+        male: 'آقا',
+        female: 'خانم',
+        appFont: 'فونت برنامه',
+        faqTitle: 'سوالات متداول',
+        noFaqs: 'هیچ سوال متداولی یافت نشد.',
+        errorOccurred: 'یک خطای غیرمنتظره رخ داد.',
+        errorMessage: 'متاسفانه مشکلی پیش آمده: ',
+        responseStopped: 'پاسخ متوقف شد.',
+        micAccessDenied: 'امکان دسترسی به میکروفون وجود ندارد.',
+        language: 'زبان',
+        persian: 'فارسی',
+        english: 'English',
+        copied: 'کپی شد!',
+        sendImage: 'ارسال عکس',
+        imagePreview: 'پیش‌نمایش عکس',
+        removeImage: 'حذف عکس',
+        theme: 'حالت نمایش',
+        light: 'روشن',
+        dark: 'تاریک',
+    }
+};
+
+type Language = 'en' | 'fa';
+type Theme = 'light' | 'dark';
 
 // --- TYPES ---
 interface HotelLink { name: string; url: string; }
@@ -74,29 +158,38 @@ const audioUtils = {
     }
 };
 
-const useLocalStorage = <T,>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
+const useLocalStorage = <T,>(key: string, initialValue: T | (() => T)): [T, React.Dispatch<React.SetStateAction<T>>] => {
     const [storedValue, setStoredValue] = useState<T>(() => {
-        try { const item = window.localStorage.getItem(key); return item ? JSON.parse(item) : initialValue; }
-        catch (error) { console.error(error); return initialValue; }
+        try {
+            const item = window.localStorage.getItem(key);
+            if (item) return JSON.parse(item);
+            return initialValue instanceof Function ? initialValue() : initialValue;
+        } catch (error) {
+            console.error(error);
+            return initialValue instanceof Function ? initialValue() : initialValue;
+        }
     });
+
     useEffect(() => {
-        try { window.localStorage.setItem(key, JSON.stringify(storedValue)); }
-        catch (error) { console.error(error); }
+        try {
+            window.localStorage.setItem(key, JSON.stringify(storedValue));
+        } catch (error) {
+            console.error(error);
+        }
     }, [key, storedValue]);
+
     return [storedValue, setStoredValue];
 };
 
 // --- ICONS ---
 const Icons = {
     SendArrow: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 11l3-3m0 0l3 3m-3-3v8m0-13a9 9 0 110 18 9 9 0 010-18z" /></svg>),
-    Plus: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>),
-    Sun: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>),
-    Moon: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>),
+    Plus: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 me-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>),
     Trash: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>),
     Menu: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>),
     Mic: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>),
     Stop: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M9 10h6v4H9z" /></svg>),
-    StopGenerating: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 16 16"><path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/></svg>),
+    StopGenerating: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 16 16"><path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/></svg>),
     Settings: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>),
     Close: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>),
     Copy: () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>),
@@ -176,23 +269,23 @@ const CustomAudioPlayer: React.FC<{ audioUrl: string; timestamp: string; sender:
     );
 };
 
-const MapPreview: React.FC<{ location: string }> = ({ location }) => (
+const MapPreview: React.FC<{ location: string; t: (key: keyof typeof translations.en) => string; }> = ({ location, t }) => (
     <a href={`https://www.openstreetmap.org/?mlat=${location.split(',')[0]}&mlon=${location.split(',')[1]}#map=15/${location.split(',')[0]}/${location.split(',')[1]}`} target="_blank" rel="noopener noreferrer" className="mt-2 block border dark:border-neutral-700 rounded-lg overflow-hidden hover:border-red-500 transition-colors">
         <div className="p-3 bg-neutral-100 dark:bg-neutral-800/50 flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 me-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>
             <p className="font-semibold truncate">{location}</p>
         </div>
-        <div className="p-2 text-center bg-neutral-200 dark:bg-neutral-700/50 text-sm font-medium text-red-600 dark:text-red-400">مشاهده روی نقشه</div>
+        <div className="p-2 text-center bg-neutral-200 dark:bg-neutral-700/50 text-sm font-medium text-red-600 dark:text-red-400">{t('showMap')}</div>
     </a>
 );
 
-const FAQModal: React.FC<{ isOpen: boolean; onClose: () => void; faqs: FAQ[]; }> = ({ isOpen, onClose, faqs }) => {
+const FAQModal: React.FC<{ isOpen: boolean; onClose: () => void; faqs: FAQ[]; t: (key: keyof typeof translations.en) => string; }> = ({ isOpen, onClose, faqs, t }) => {
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-white dark:bg-[#1C1C1C] border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl w-full max-w-lg flex flex-col max-h-[calc(100vh-2rem)]" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center p-4 border-b border-neutral-200 dark:border-neutral-800 flex-shrink-0">
-                    <h2 className="text-xl font-bold text-black dark:text-white">سوالات متداول</h2>
+                    <h2 className="text-xl font-bold text-black dark:text-white">{t('faqTitle')}</h2>
                     <button onClick={onClose} className="p-1.5 text-neutral-600 dark:text-neutral-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700"><Icons.Close /></button>
                 </div>
                 <div className="overflow-y-auto p-4 space-y-4">
@@ -202,7 +295,7 @@ const FAQModal: React.FC<{ isOpen: boolean; onClose: () => void; faqs: FAQ[]; }>
                             <p className="text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">{faq.answer}</p>
                         </div>
                     ))}
-                    {faqs.length === 0 && <p className="text-center py-8 text-neutral-500">هیچ سوال متداولی یافت نشد.</p>}
+                    {faqs.length === 0 && <p className="text-center py-8 text-neutral-500">{t('noFaqs')}</p>}
                 </div>
             </div>
         </div>
@@ -212,8 +305,9 @@ const FAQModal: React.FC<{ isOpen: boolean; onClose: () => void; faqs: FAQ[]; }>
 const SettingsModal: React.FC<{
     isOpen: boolean; onClose: () => void; isBotVoiceEnabled: boolean; setIsBotVoiceEnabled: (e: boolean) => void;
     botVoice: BotVoice; setBotVoice: (v: BotVoice) => void; appFont: string; setAppFont: (f: string) => void;
-    isMapEnabled: boolean; setIsMapEnabled: (e: boolean) => void;
-}> = ({ isOpen, onClose, isBotVoiceEnabled, setIsBotVoiceEnabled, botVoice, setBotVoice, appFont, setAppFont, isMapEnabled, setIsMapEnabled }) => {
+    isMapEnabled: boolean; setIsMapEnabled: (e: boolean) => void; language: Language; setLanguage: (l: Language) => void;
+    theme: Theme; setTheme: (t: Theme) => void; t: (key: keyof typeof translations.en) => string;
+}> = ({ isOpen, onClose, isBotVoiceEnabled, setIsBotVoiceEnabled, botVoice, setBotVoice, appFont, setAppFont, isMapEnabled, setIsMapEnabled, language, setLanguage, theme, setTheme, t }) => {
     const [isFontDropdownOpen, setIsFontDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -224,40 +318,62 @@ const SettingsModal: React.FC<{
     }, []);
 
     if (!isOpen) return null;
+    
+    const translatedFonts = AVAILABLE_FONTS.map(font => ({
+      ...font,
+      name: language === 'fa' ? font.name : font.name_en,
+    }));
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-[#1C1C1C] border border-neutral-700 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center p-4 border-b border-neutral-800">
-                    <h2 className="text-xl font-bold text-white">تنظیمات</h2>
-                    <button onClick={onClose} className="p-1.5 text-neutral-400 rounded-full hover:bg-neutral-700"><Icons.Close /></button>
+            <div className="bg-white dark:bg-[#1C1C1C] border dark:border-neutral-700 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center p-4 border-b dark:border-neutral-800">
+                    <h2 className="text-xl font-bold text-black dark:text-white">{t('settingsTitle')}</h2>
+                    <button onClick={onClose} className="p-1.5 text-neutral-500 dark:text-neutral-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700"><Icons.Close /></button>
                 </div>
-                <div className="p-6 space-y-6">
-                    <div className="flex items-center justify-between"><label className="font-medium text-neutral-300">پاسخ صوتی دستیار</label><ToggleSwitch enabled={isBotVoiceEnabled} onChange={setIsBotVoiceEnabled} /></div>
-                    <div className="border-t border-neutral-800"></div>
-                    <div className="flex items-center justify-between"><label className="font-medium text-neutral-300">نمایش نقشه</label><ToggleSwitch enabled={isMapEnabled} onChange={setIsMapEnabled} /></div>
-                    <div className="border-t border-neutral-800"></div>
+                <div className="p-6 space-y-6 text-black dark:text-white">
+                    <div className="flex items-center justify-between"><label className="font-medium text-neutral-700 dark:text-neutral-300">{t('voiceResponse')}</label><ToggleSwitch enabled={isBotVoiceEnabled} onChange={setIsBotVoiceEnabled} /></div>
+                    <div className="border-t dark:border-neutral-800"></div>
+                    <div className="flex items-center justify-between"><label className="font-medium text-neutral-700 dark:text-neutral-300">{t('showMap')}</label><ToggleSwitch enabled={isMapEnabled} onChange={setIsMapEnabled} /></div>
+                    <div className="border-t dark:border-neutral-800"></div>
                     <div>
-                        <label className="block font-medium text-neutral-300 mb-3">صدای دستیار</label>
+                        <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-3">{t('assistantVoice')}</label>
                         <div className="flex gap-3" role="radiogroup">
-                            <button role="radio" aria-checked={botVoice === 'Puck'} onClick={() => setBotVoice('Puck')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-colors ${botVoice === 'Puck' ? 'bg-neutral-700 text-white' : 'bg-neutral-800 hover:bg-neutral-700/50 text-neutral-400'}`}>آقا</button>
-                            <button role="radio" aria-checked={botVoice === 'Kore'} onClick={() => setBotVoice('Kore')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-colors ${botVoice === 'Kore' ? 'bg-[#F30F26] text-white' : 'bg-neutral-800 hover:bg-neutral-700/50 text-neutral-400'}`}>خانم</button>
+                            <button role="radio" aria-checked={botVoice === 'Puck'} onClick={() => setBotVoice('Puck')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-colors ${botVoice === 'Puck' ? 'bg-neutral-600 dark:bg-neutral-700 text-white' : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700/50 text-neutral-600 dark:text-neutral-400'}`}>{t('male')}</button>
+                            <button role="radio" aria-checked={botVoice === 'Kore'} onClick={() => setBotVoice('Kore')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-colors ${botVoice === 'Kore' ? 'bg-[#F30F26] text-white' : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700/50 text-neutral-600 dark:text-neutral-400'}`}>{t('female')}</button>
                         </div>
                     </div>
-                    <div className="border-t border-neutral-800"></div>
+                    <div className="border-t dark:border-neutral-800"></div>
                     <div>
-                        <label className="block font-medium text-neutral-300 mb-3">فونت برنامه</label>
+                        <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-3">{t('appFont')}</label>
                         <div className="relative" ref={dropdownRef}>
-                            <button onClick={() => setIsFontDropdownOpen(prev => !prev)} className="w-full flex justify-between items-center p-2.5 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F30F26]">
-                                <span>{AVAILABLE_FONTS.find(f => f.family === appFont)?.name || appFont}</span>
+                            <button onClick={() => setIsFontDropdownOpen(prev => !prev)} className="w-full flex justify-between items-center p-2.5 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-lg text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#F30F26]">
+                                <span>{translatedFonts.find(f => f.family === appFont)?.name || appFont}</span>
                                 <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform ${isFontDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                             </button>
                             {isFontDropdownOpen && (
-                                <div className="absolute z-10 top-full mt-2 w-full bg-[#2a2a2a] border border-neutral-700 rounded-lg shadow-lg overflow-hidden"><ul className="py-1">
-                                    {AVAILABLE_FONTS.map(font => (<li key={font.family}><button onClick={() => { setAppFont(font.family); setIsFontDropdownOpen(false); }} className={`w-full text-right px-4 py-2 text-sm transition-colors ${appFont === font.family ? 'bg-[#F30F26] text-white' : 'text-neutral-300 hover:bg-neutral-700'}`}>
+                                <div className="absolute z-10 top-full mt-2 w-full bg-white dark:bg-[#2a2a2a] border border-neutral-300 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"><ul className="py-1">
+                                    {translatedFonts.map(font => (<li key={font.family}><button onClick={() => { setAppFont(font.family); setIsFontDropdownOpen(false); }} className={`w-full text-start px-4 py-2 text-sm transition-colors ${appFont === font.family ? 'bg-[#F30F26] text-white' : 'text-neutral-800 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'}`}>
                                         <div className="flex justify-between items-center"><span>{font.name}</span>{appFont === font.family && <Icons.Check className="h-5 w-5 text-white" />}</div>
                                     </button></li>))}
                                 </ul></div>
                             )}
+                        </div>
+                    </div>
+                    <div className="border-t dark:border-neutral-800"></div>
+                    <div>
+                        <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-3">{t('language')}</label>
+                        <div className="flex gap-3" role="radiogroup">
+                            <button role="radio" aria-checked={language === 'en'} onClick={() => setLanguage('en')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-colors ${language === 'en' ? 'bg-neutral-600 dark:bg-neutral-700 text-white' : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700/50 text-neutral-600 dark:text-neutral-400'}`}>{t('english')}</button>
+                            <button role="radio" aria-checked={language === 'fa'} onClick={() => setLanguage('fa')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-colors ${language === 'fa' ? 'bg-[#F30F26] text-white' : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700/50 text-neutral-600 dark:text-neutral-400'}`}>{t('persian')}</button>
+                        </div>
+                    </div>
+                     <div className="border-t dark:border-neutral-800"></div>
+                    <div>
+                        <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-3">{t('theme')}</label>
+                        <div className="flex gap-3" role="radiogroup">
+                            <button role="radio" aria-checked={theme === 'light'} onClick={() => setTheme('light')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-colors ${theme === 'light' ? 'bg-neutral-600 dark:bg-neutral-700 text-white' : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700/50 text-neutral-600 dark:text-neutral-400'}`}>{t('light')}</button>
+                            <button role="radio" aria-checked={theme === 'dark'} onClick={() => setTheme('dark')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-colors ${theme === 'dark' ? 'bg-[#F30F26] text-white' : 'bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700/50 text-neutral-600 dark:text-neutral-400'}`}>{t('dark')}</button>
                         </div>
                     </div>
                 </div>
@@ -266,7 +382,7 @@ const SettingsModal: React.FC<{
     );
 };
 
-const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; isLastMessage: boolean; isMapEnabled: boolean; onCopy: (text: string, id: string) => void; copiedMessageId: string | null }> = ({ message, isLoading, isLastMessage, isMapEnabled, onCopy, copiedMessageId }) => {
+const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; isLastMessage: boolean; isMapEnabled: boolean; onCopy: (text: string, id: string) => void; copiedMessageId: string | null; t: (key: keyof typeof translations.en) => string; }> = ({ message, isLoading, isLastMessage, isMapEnabled, onCopy, copiedMessageId, t }) => {
     const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl } = message;
     const [displayedText, setDisplayedText] = useState('');
     const [location, setLocation] = useState<string | null>(null);
@@ -275,22 +391,22 @@ const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; isLastMe
 
     useEffect(() => {
         if (sender === 'bot' && text) {
-            const locationMatch = text.match(/\(مکان:\s*([^)]+)\)/);
+            const locationMatch = text.match(/\(مکان:\s*([^)]+)\)/) || text.match(/\(Location:\s*([^)]+)\)/);
             setLocation(locationMatch ? locationMatch[1].trim() : null);
         }
     }, [text, sender]);
 
     useEffect(() => {
         if (isBotGenerating) {
-            const timer = setTimeout(() => { setDisplayedText(text.slice(0, displayedText.length + 1)); }, 10);
+            const timer = setTimeout(() => { setDisplayedText(prev => text.slice(0, prev.length + 1)); }, 10);
             return () => clearTimeout(timer);
         } else {
             setDisplayedText(text);
         }
-    }, [isBotGenerating, text, displayedText]);
+    }, [isBotGenerating, text]);
 
     const parseTextToComponents = (inputText: string): React.ReactNode[] => {
-        const cleanText = inputText.replace(/\(مکان:\s*([^)]+)\)/g, '').trim();
+        const cleanText = inputText.replace(/\(مکان:\s*([^)]+)\)/g, '').replace(/\(Location:\s*([^)]+)\)/g, '').trim();
         const regex = /https?:\/\/[^\s.,;!?()]+/g; let lastIndex = 0; const components: React.ReactNode[] = []; let match;
         while ((match = regex.exec(cleanText)) !== null) {
             if (match.index > lastIndex) components.push(cleanText.substring(lastIndex, match.index));
@@ -303,11 +419,11 @@ const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; isLastMe
     
     return (
         <div className="group relative">
-             {imageUrl && <img src={imageUrl} alt="User upload" className="rounded-lg mb-2 max-w-full h-auto" />}
+             {imageUrl && <img src={imageUrl} alt={t('imagePreview')} className="rounded-lg mb-2 max-w-full h-auto" />}
              {audioUrl && <CustomAudioPlayer audioUrl={audioUrl} timestamp={timestamp || ''} sender={sender}/>}
              {isSpeaking && <div className="flex items-center space-x-2 rtl:space-x-reverse"><Icons.Speaking /></div>}
-             {text && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(displayedText)}</p>{isMapEnabled && location && <MapPreview location={location} />}</div>)}
-             {sender === 'bot' && text && !isSpeaking && (<div className="absolute top-1 -left-8 opacity-0 group-hover:opacity-100 transition-opacity">
+             {text && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(displayedText)}</p>{isMapEnabled && location && <MapPreview location={location} t={t} />}</div>)}
+             {sender === 'bot' && text && !isSpeaking && !isLoading && (<div className={`absolute top-1 opacity-0 group-hover:opacity-100 transition-opacity ${document.documentElement.dir === 'rtl' ? '-left-8' : '-right-8'}`}>
                 <button onClick={() => onCopy(text, id)} className="p-1.5 rounded-md hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-500">{copiedMessageId === id ? <Icons.Check /> : <Icons.Copy />}</button>
              </div>)}
         </div>
@@ -315,26 +431,26 @@ const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; isLastMe
 };
 
 // --- CORE LOGIC HOOK ---
-const useAppLogic = () => {
+const useAppLogic = (language: Language) => {
+    const t = useCallback((key: keyof typeof translations.en) => translations[language][key] || key, [language]);
     const [isAppReady, setIsAppReady] = useState(false);
-    const [conversations, setConversations] = useLocalStorage<Conversation[]>('conversations', []);
+    const [conversations, setConversations] = useLocalStorage<Conversation[]>('conversations_v2', []);
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [faqs, setFaqs] = useState<FAQ[]>([]);
     const [botSettings, setBotSettings] = useState<BotSettings>({
         system_instruction: '', default_voice: 'Kore', is_bot_voice_enabled: true,
-        available_fonts: [], hotel_links: [], welcome_title: 'چت بات هوشمند سفرنامه ۲۴',
-        welcome_message: 'به چت بات هوشمند سفرنامه ۲۴ خوش آمدید. می‌توانید در مورد هتل‌ها، رستوران‌ها، شهرها، روستاها و جاذبه‌های گردشگری از من بپرسید و برای سفر خود مشورت بگیرید.',
+        available_fonts: [], hotel_links: [], welcome_title: '', welcome_message: '',
         logo_url: 'http://cps.safarnameh24.com/media/images/logo/full-red-gray_mej9jEE.webp'
     });
     const abortControllerRef = useRef<AbortController | null>(null);
 
     const startNewChat = useCallback(() => {
         const newId = `chat_${Date.now()}`;
-        const newConversation: Conversation = { id: newId, title: 'گفتگوی جدید', messages: [], lastUpdated: Date.now() };
+        const newConversation: Conversation = { id: newId, title: t('newConversationTitle'), messages: [], lastUpdated: Date.now() };
         setConversations(prev => [...prev, newConversation]);
         setActiveChatId(newId);
-    }, [setConversations]);
+    }, [setConversations, t]);
 
     useEffect(() => {
         const initializeApp = async () => {
@@ -348,6 +464,7 @@ const useAppLogic = () => {
             } finally { setIsAppReady(true); }
         };
         initializeApp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const updateBotMessage = useCallback((botMessageId: string, updates: Partial<Message>) => {
@@ -357,8 +474,8 @@ const useAppLogic = () => {
     
     const handleSendMessage = useCallback(async (
         messageData: { text?: string; audio?: { data: string; mimeType: string; url: string; }; image?: { dataUrl: string; base64: string; mimeType: string; }; },
-        { isBotVoiceEnabled, botVoice, hotelLinks, initAudioContext, queueAndPlayTTS }:
-        { isBotVoiceEnabled: boolean; botVoice: BotVoice; hotelLinks: HotelLink[]; initAudioContext: () => void; queueAndPlayTTS: (text: string, messageId: string) => Promise<void> }
+        { isBotVoiceEnabled, botVoice, hotelLinks, faqs, initAudioContext, queueAndPlayTTS }:
+        { isBotVoiceEnabled: boolean; botVoice: BotVoice; hotelLinks: HotelLink[]; faqs: FAQ[]; initAudioContext: () => void; queueAndPlayTTS: (text: string, messageId: string) => Promise<void> }
     ) => {
         const { text = '', audio, image } = messageData;
         if (isBotVoiceEnabled) initAudioContext();
@@ -378,15 +495,52 @@ const useAppLogic = () => {
         setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, messages: [...c.messages, userMessage, botMessage] } : c));
 
         try {
-            const conversationHistory = [...currentConvo.messages, userMessage].map(msg => ({ sender: msg.sender, text: msg.text }));
-            const hotelContext = hotelLinks.length > 0 ? `\n\nلیست هتل‌های معتبر و لینک دقیق آن‌ها:\n` + hotelLinks.map(h => `- ${h.name}: ${h.url}`).join('\n') : '';
+            const conversationHistory = [...currentConvo.messages, userMessage]
+              .filter(msg => msg.text || msg.audioUrl) // Only include messages with content for history
+              .map(msg => ({ 
+                  sender: msg.sender, 
+                  text: msg.text || (msg.audioUrl ? `[${language === 'fa' ? 'پیام صوتی' : 'audio message'}]` : '')
+              }));
             
-            let messageWithContext = text;
-            if(image) messageWithContext += "\n\n[دستورالعمل برای شما: این یک عکس است. اگر یک مکان توریستی، هتل یا شهر مرتبط با سفر است، آن را شناسایی و توضیح دهید. در غیر این صورت، بگویید که عکس به موضوع سفر مرتبط نیست.]";
-            if (isFirstMessage) messageWithContext += `[دستورالعمل: شما یک متخصص سفر برای ایران، شامل شهرها، روستاها، جاذبه‌های گردشگری، هتل‌ها و رستوران‌ها هستید. وقتی به مکان خاصی اشاره می‌کنید، نام و شهر را در انتهای پاسخ به این شکل اضافه کنید: (مکان: نام مکان، شهر). از لیست هتل‌ها دقیق استفاده کنید. لینک‌ها را به صورت URL خام و بدون قالب‌بندی markdown ارائه بده.${hotelContext}]`;
+            // CONTEXT BUILDING
+            const hotelContext = `[HOTEL LIST]\n${hotelLinks.map(h => `- ${h.name}: ${h.url}`).join('\n')}`;
+            const faqContext = `[FAQ]\n${faqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n')}`;
+            const userLang = language;
+            
+            const systemPrompt = `
+[ROLE & GOAL]
+You are a world-class, friendly, and expert travel assistant for Safarnameh24, an Iranian travel agency. Your primary goal is to provide helpful, accurate, and concise information to users planning their travels in and around Iran.
+
+[CORE KNOWLEDGE & DATA]
+You have access to two critical pieces of information. YOU MUST USE THIS DATA STRICTLY.
+1.  ${hotelContext}
+2.  ${faqContext}
+
+[RULES & BEHAVIOR]
+1.  **Language Detection:** The user is currently interacting in ${userLang}. However, you MUST detect the language of the *user's last message* and respond in THAT language. You can seamlessly switch between Persian and English within a conversation.
+2.  **Hotel Links:**
+    -   When a user asks for a hotel, check the [HOTEL LIST].
+    -   If the hotel is in the list, provide its EXACT URL. DO NOT create or guess URLs.
+    -   If the hotel is NOT in the list, you MUST state: "متاسفانه این هتل در سفرنامه ۲۴ موجود نیست." (in Persian) or "Unfortunately, this hotel is not available on Safarnameh24." (in English).
+    -   NEVER provide links from any other website besides safarnameh24.com.
+    -   Present URLs as clean, raw text (e.g., https://...). DO NOT use Markdown formatting like [text](url).
+3.  **FAQ Usage:** Use the [FAQ] to answer relevant questions (e.g., working hours).
+4.  **Location Recognition:** When you identify a specific, real-world location (hotel, attraction, city), you MUST embed its coordinates in your response using this EXACT format: (Location: LAT,LONG). Example: (Location: 35.7601,51.4118).
+5.  **Image Analysis:**
+    -   If the user's message includes an image, analyze it.
+    -   If it's a travel-related location (landmark, hotel, city), describe it.
+    -   If it's not travel-related, state that it's not relevant to travel planning.
+6.  **Persona:** Be polite, helpful, and professional. Keep answers concise.
+
+[USER'S CURRENT MESSAGE]
+The user's message is: "${text}"
+${image ? '[The user has also uploaded an image for context.]' : ''}
+`;
 
             const payload = {
-                message: messageWithContext, conversation_history: conversationHistory,
+                message: text,
+                system_instruction: systemPrompt,
+                conversation_history: conversationHistory,
                 ...(audio && { audio_data: audio.data, mime_type: audio.mimeType }),
                 ...(image && { image_data: image.base64, image_mime_type: image.mimeType }),
             };
@@ -398,50 +552,56 @@ const useAppLogic = () => {
             
             setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, lastUpdated: Date.now() } : c));
             if (isFirstMessage && botResponse) {
-                 const titleResponse = await apiService.sendChatMessage({ message: `بر اساس این گفتگو، یک عنوان بسیار کوتاه (2 تا 4 کلمه) ایجاد کن: کاربر: "${userMessage.text || "عکس"}" - ربات: "${botResponse}"` }, new AbortController().signal);
+                 const titlePrompt = language === 'fa' ? `بر اساس این گفتگو، یک عنوان بسیار کوتاه (2 تا 4 کلمه) ایجاد کن: کاربر: "${userMessage.text || "عکس"}" - ربات: "${botResponse}"` : `Based on this conversation, create a very short title (2-4 words): User: "${userMessage.text || "photo"}" - Bot: "${botResponse}"`;
+                 const titleResponse = await apiService.sendChatMessage({ message: titlePrompt, system_instruction: "You are a title generator. Be concise." }, new AbortController().signal);
                  if (titleResponse) setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, title: titleResponse.replace(/["*]/g, '').trim() } : c));
             }
         } catch (error) {
-            if ((error as Error).name === 'AbortError') updateBotMessage(botMessage.id, { text: "پاسخ متوقف شد.", isSpeaking: false });
-            else { const errorMessage = error instanceof Error ? error.message : "یک خطای غیرمنتظره رخ داد."; updateBotMessage(botMessage.id, { text: `متاسفانه مشکلی پیش آمده: ${errorMessage}`, isSpeaking: false }); }
+            if ((error as Error).name === 'AbortError') updateBotMessage(botMessage.id, { text: t('responseStopped'), isSpeaking: false });
+            else { const errorMessage = error instanceof Error ? error.message : t('errorOccurred'); updateBotMessage(botMessage.id, { text: `${t('errorMessage')}${errorMessage}`, isSpeaking: false }); }
         } finally { setIsLoading(false); }
-    }, [conversations, activeChatId, isLoading, setConversations]);
+    }, [conversations, activeChatId, isLoading, setConversations, language, t]);
 
     const handleStopGenerating = () => {
         abortControllerRef.current?.abort();
     };
     
     const handleDeleteConversation = useCallback((id: string) => {
-        if (!window.confirm("آیا از حذف این گفتگو مطمئن هستید؟")) return;
+        if (!window.confirm(t('confirmDelete'))) return;
         setConversations(prev => {
             const remaining = prev.filter(c => c.id !== id);
             if (remaining.length === 0) {
                 const newId = `chat_${Date.now()}`;
                 setActiveChatId(newId);
-                return [{ id: newId, title: 'گفتگوی جدید', messages: [], lastUpdated: Date.now() }];
+                return [{ id: newId, title: t('newConversationTitle'), messages: [], lastUpdated: Date.now() }];
             }
             if (activeChatId === id) setActiveChatId(remaining.reduce((a, b) => a.lastUpdated > b.lastUpdated ? a : b).id);
             return remaining;
         });
-    }, [activeChatId, setConversations]);
+    }, [activeChatId, setConversations, t]);
 
     return {
-        isAppReady, conversations, setConversations, activeChatId, setActiveChatId, isLoading,
+        isAppReady, conversations, activeChatId, setActiveChatId, isLoading,
         faqs, botSettings, startNewChat, handleSendMessage, handleDeleteConversation,
-        handleStopGenerating, updateBotMessage,
+        handleStopGenerating, updateBotMessage, t
     };
 };
 
 // --- MAIN APP COMPONENT ---
 const App: React.FC = () => {
+    const [language, setLanguage] = useLocalStorage<Language>('language', () => {
+        const browserLang = navigator.language.split('-')[0];
+        return browserLang === 'fa' ? 'fa' : 'en';
+    });
+    const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
+
     const {
-        isAppReady, conversations, setConversations, activeChatId, setActiveChatId, isLoading, faqs,
+        isAppReady, conversations, activeChatId, setActiveChatId, isLoading, faqs,
         botSettings, startNewChat, handleSendMessage, handleDeleteConversation, handleStopGenerating,
-        updateBotMessage
-    } = useAppLogic();
+        updateBotMessage, t
+    } = useAppLogic(language);
     
     const [userInput, setUserInput] = useState('');
-    const [theme, setTheme] = useLocalStorage<'light' | 'dark'>('theme', 'dark');
     const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
     const [isRecording, setIsRecording] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -461,9 +621,17 @@ const App: React.FC = () => {
     const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
     const fileInputRef = useRef<HTMLInputElement>(null);
     
-    useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark'); }, [theme]);
     useEffect(() => { document.documentElement.style.setProperty('--app-font', `"${appFont}"`); }, [appFont]);
     useEffect(() => { endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [conversations, activeChatId, isLoading]);
+    useEffect(() => {
+        document.documentElement.lang = language;
+        document.documentElement.dir = language === 'fa' ? 'rtl' : 'ltr';
+    }, [language]);
+    useEffect(() => {
+        const root = window.document.documentElement;
+        root.classList.remove('light', 'dark');
+        root.classList.add(theme);
+    }, [theme]);
     
     const initAudioContext = useCallback(() => {
         if (!audioContextRef.current) {
@@ -495,7 +663,7 @@ const App: React.FC = () => {
     const onSendMessage = () => {
         handleSendMessage(
             { text: userInput, image: imageToSend },
-            { isBotVoiceEnabled, botVoice, hotelLinks: botSettings.hotel_links, initAudioContext, queueAndPlayTTS }
+            { isBotVoiceEnabled, botVoice, hotelLinks: botSettings.hotel_links, faqs, initAudioContext, queueAndPlayTTS }
         );
         setUserInput('');
         setImageToSend(null);
@@ -515,15 +683,15 @@ const App: React.FC = () => {
                 const reader = new FileReader();
                 reader.onloadend = () => {
                     const [meta, base64] = (reader.result as string).split(',');
-                    if (base64) handleSendMessage({ audio: { data: base64, mimeType: 'audio/webm', url: reader.result as string } }, { isBotVoiceEnabled, botVoice, hotelLinks: botSettings.hotel_links, initAudioContext, queueAndPlayTTS });
+                    if (base64) handleSendMessage({ audio: { data: base64, mimeType: 'audio/webm', url: reader.result as string } }, { isBotVoiceEnabled, botVoice, hotelLinks: botSettings.hotel_links, faqs, initAudioContext, queueAndPlayTTS });
                 };
                 reader.readAsDataURL(audioBlob);
                 stream.getTracks().forEach(track => track.stop());
             };
             recorder.start();
             setIsRecording(true);
-        } catch (err) { console.error("Mic error:", err); alert("امکان دسترسی به میکروفون وجود ندارد."); }
-    }, [isRecording, handleSendMessage, isBotVoiceEnabled, botVoice, botSettings.hotel_links, initAudioContext, queueAndPlayTTS]);
+        } catch (err) { console.error("Mic error:", err); alert(t('micAccessDenied')); }
+    }, [isRecording, handleSendMessage, isBotVoiceEnabled, botVoice, botSettings.hotel_links, faqs, initAudioContext, queueAndPlayTTS, t]);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -547,19 +715,28 @@ const App: React.FC = () => {
     if (!isAppReady) return <LoadingSpinner />;
     
     const activeConversation = conversations.find(c => c.id === activeChatId);
+    
+    const sidebarClass = language === 'fa' 
+        ? `fixed inset-y-0 right-0 z-30 w-72 transform ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`
+        : `fixed inset-y-0 left-0 z-30 w-72 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`;
+        
+    const mainClass = language === 'fa' 
+        ? `h-full flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'lg:mr-72' : ''}`
+        : `h-full flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'lg:ml-72' : ''}`;
+
 
     return (
-        <div className="h-screen bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden" style={{ fontFamily: appFont }}>
+        <div className="h-screen bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden" style={{ fontFamily: appFont }}>
             {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden" />}
-            <aside className={`flex flex-col bg-neutral-100 dark:bg-neutral-900 transition-transform duration-300 ease-in-out fixed inset-y-0 right-0 z-30 w-72 transform ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <aside className={`flex flex-col bg-white dark:bg-neutral-900 transition-transform duration-300 ease-in-out ${sidebarClass}`}>
                 <div className="p-4 flex-grow flex flex-col min-h-0">
-                    <button onClick={startNewChat} className="flex items-center justify-center w-full px-4 py-2 mb-4 bg-[#F30F26] text-white rounded-lg hover:bg-red-700 transition-colors"><Icons.Plus />گفتگوی جدید</button>
-                    <div className="flex-grow overflow-y-auto pr-2">
-                        <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 mb-2">تاریخچه گفتگو</h2>
+                    <button onClick={startNewChat} className="flex items-center justify-center w-full px-4 py-2 mb-4 bg-[#F30F26] text-white rounded-lg hover:bg-red-700 transition-colors"><Icons.Plus />{t('newChat')}</button>
+                    <div className="flex-grow overflow-y-auto pe-2">
+                        <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 mb-2">{t('chatHistory')}</h2>
                         {conversations.slice().reverse().map(c => (
                             <div key={c.id} className="relative group">
-                                <button onClick={() => { setActiveChatId(c.id); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full text-right p-2 my-1 rounded-md truncate ${activeChatId === c.id ? 'bg-neutral-200 dark:bg-neutral-700' : 'hover:bg-neutral-200 dark:hover:bg-neutral-700'}`}>{c.title}</button>
-                                <div className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => { setActiveChatId(c.id); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full text-start p-2 my-1 rounded-md truncate ${activeChatId === c.id ? 'bg-neutral-200 dark:bg-neutral-700' : 'hover:bg-neutral-200 dark:hover:bg-neutral-700'}`}>{c.title}</button>
+                                <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity ${language === 'fa' ? 'left-2' : 'right-2'}`}>
                                     <button onClick={() => handleDeleteConversation(c.id)} className="p-1.5 rounded-md hover:bg-red-500/20 text-neutral-500 hover:text-red-500"><Icons.Trash /></button>
                                 </div>
                             </div>
@@ -567,19 +744,19 @@ const App: React.FC = () => {
                     </div>
                 </div>
                 <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-2">
-                     <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                        <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} className="flex items-center justify-center flex-1 p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Moon/><span className="mr-2">تاریک</span></button>
-                        <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-center flex-1 p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Settings /><span className="mr-2">تنظیمات</span></button>
-                     </div>
-                     <button onClick={() => setIsFAQOpen(true)} className="flex items-center justify-center w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.FAQ /><span className="mr-2">سوالات متداول</span></button>
+                    <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                        <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-center flex-1 p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Settings /><span className="ms-2">{t('settings')}</span></button>
+                        <button onClick={() => setIsFAQOpen(true)} className="flex items-center justify-center flex-1 p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.FAQ /><span className="ms-2">{t('faq')}</span></button>
+                    </div>
                 </div>
             </aside>
 
-            <main className={`h-full flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'lg:mr-72' : ''}`}>
-                <header className="flex items-center justify-between p-2 sm:p-4 border-b border-neutral-200 dark:border-neutral-700 flex-shrink-0">
-                    <div className="w-10 h-10 lg:hidden"></div>
-                    <h1 className="text-lg font-semibold truncate mx-4 text-center flex-1">{activeConversation?.title || 'گفتگوی جدید'}</h1>
-                    <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Menu /></button>
+            <main className={mainClass}>
+                <header className="flex items-center justify-between p-2 sm:p-4 border-b bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 flex-shrink-0">
+                    <div className="lg:hidden">{language === 'fa' ? <div className="w-10 h-10"></div> : <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Menu /></button>}</div>
+                    <h1 className="text-lg font-semibold truncate mx-4 text-center flex-1">{activeConversation?.title || t('newConversationTitle')}</h1>
+                    <div className="lg:hidden">{language === 'fa' ? <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Menu /></button> : <div className="w-10 h-10"></div>}</div>
+                    <div className="hidden lg:block">{language === 'fa' ? <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Menu /></button> : null}</div>
                 </header>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -587,8 +764,8 @@ const App: React.FC = () => {
                         <div className="space-y-6">
                             {activeConversation.messages.map((msg, index) => (
                                 <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[85%] md:max-w-2xl p-3 sm:p-4 rounded-2xl ${msg.sender === 'user' ? 'bg-[#F30F26] text-white rounded-br-none' : 'bg-neutral-200 dark:bg-neutral-700 rounded-bl-none'}`}>
-                                       <MessageRenderer message={msg} isLoading={isLoading} isLastMessage={index === activeConversation.messages.length - 1} isMapEnabled={isMapEnabled} onCopy={handleCopy} copiedMessageId={copiedMessageId} />
+                                    <div className={`max-w-[85%] md:max-w-2xl p-3 sm:p-4 rounded-2xl ${msg.sender === 'user' ? `bg-[#F30F26] text-white ${language === 'fa' ? 'rounded-br-none' : 'rounded-bl-none'}` : `bg-white dark:bg-neutral-700 ${language === 'fa' ? 'rounded-bl-none' : 'rounded-br-none'}`}`}>
+                                       <MessageRenderer message={msg} isLoading={isLoading} isLastMessage={index === activeConversation.messages.length - 1} isMapEnabled={isMapEnabled} onCopy={handleCopy} copiedMessageId={copiedMessageId} t={t} />
                                     </div>
                                 </div>
                             ))}
@@ -597,30 +774,34 @@ const App: React.FC = () => {
                     ) : (
                         <div className="flex flex-col items-center justify-center h-full text-center text-neutral-500 p-4">
                             <img src={botSettings.logo_url} alt="Safarnameh24 Logo" className="w-40 h-auto mb-4" />
-                            <h1 className="text-3xl md:text-4xl font-bold text-neutral-800 dark:text-neutral-200">{botSettings.welcome_title}</h1>
-                            <p className="mt-4 max-w-md">{botSettings.welcome_message}</p>
+                            <h1 className="text-3xl md:text-4xl font-bold text-neutral-800 dark:text-neutral-200">{botSettings.welcome_title ? (language === 'fa' ? botSettings.welcome_title : 'Safarnameh24 Smart Chatbot') : t('welcomeMessageTitle')}</h1>
+                            <p className="mt-4 max-w-md">{botSettings.welcome_message ? (language === 'fa' ? botSettings.welcome_message : 'Welcome! Ask me about hotels, restaurants, and attractions.') : t('welcomeMessageBody')}</p>
                         </div>
                     )}
                 </div>
 
-                <footer className="p-4 border-t border-neutral-200 dark:border-neutral-700">
-                    {imageToSend && (<div className="relative mb-2 w-20 h-20"><img src={imageToSend.dataUrl} alt="Preview" className="w-full h-full object-cover rounded-lg"/><button onClick={() => setImageToSend(null)} className="absolute -top-2 -right-2 bg-neutral-800 text-white rounded-full p-0.5 w-6 h-6 flex items-center justify-center" aria-label="Remove image"><Icons.Close /></button></div>)}
+                <footer className="p-4 border-t bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
+                    {imageToSend && (<div className="relative mb-2 w-20 h-20"><img src={imageToSend.dataUrl} alt={t('imagePreview')} className="w-full h-full object-cover rounded-lg"/><button onClick={() => setImageToSend(null)} className={`absolute -top-2 bg-neutral-800 text-white rounded-full p-0.5 w-6 h-6 flex items-center justify-center ${language === 'fa' ? '-right-2' : '-left-2'}`} aria-label={t('removeImage')}><Icons.Close /></button></div>)}
                     <div className="relative">
                          <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden"/>
-                        <textarea value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} placeholder="پیام خود را اینجا بنویسید..." className="w-full py-3 pr-12 pl-12 sm:py-4 sm:pr-14 sm:pl-14 text-base sm:text-lg bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none" rows={1} disabled={isLoading} />
-                         <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2"><button onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!imageToSend} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50" title="ارسال عکس"><Icons.Paperclip /></button></div>
-                         <div className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 flex items-center">
-                            {isLoading ? (<button onClick={handleStopGenerating} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700" title="توقف"><Icons.StopGenerating /></button>)
-                             : isRecording ? (<button onClick={handleMicClick} className="p-2 rounded-full bg-red-600 text-white animate-pulse"><Icons.Stop /></button>)
-                             : userInput.trim() || imageToSend ? (<button onClick={onSendMessage} disabled={isLoading} className="p-2 rounded-full bg-[#F30F26] text-white disabled:bg-neutral-400"><Icons.SendArrow /></button>)
-                             : (<button onClick={handleMicClick} disabled={isLoading} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Mic /></button>)}
+                        <textarea value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} placeholder={t('messagePlaceholder')} className="w-full py-3 ps-12 pe-20 sm:pe-24 text-base bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none" rows={1} disabled={isLoading} />
+                         <div className={`absolute top-1/2 -translate-y-1/2 ${language === 'fa' ? 'right-2 sm:right-3' : 'left-2 sm:left-3'}`}><button onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!imageToSend} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50" title={t('sendImage')}><Icons.Paperclip /></button></div>
+                         <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 ${language === 'fa' ? 'left-2 sm:left-3' : 'right-2 sm:right-3'}`}>
+                            {isLoading ? (<button onClick={handleStopGenerating} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700" title={t('stopGenerating')}><Icons.StopGenerating /></button>)
+                             : (
+                                <>
+                                 {userInput.trim() || imageToSend ? (<button onClick={onSendMessage} disabled={isLoading} className="p-2 rounded-full bg-[#F30F26] text-white disabled:bg-neutral-400" title={t('sendMessage')}><Icons.SendArrow /></button>)
+                                 : isRecording ? (<button onClick={handleMicClick} className="p-2 rounded-full bg-red-600 text-white animate-pulse"><Icons.Stop /></button>)
+                                 : (<button onClick={handleMicClick} disabled={isLoading} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700" title={t('recordMessage')}><Icons.Mic /></button>)}
+                                </>
+                             )}
                         </div>
                     </div>
-                     <p className="text-xs text-center text-neutral-500 dark:text-neutral-400 mt-2">Design & Develop by <a href="https://sevintm.com" target="_blank" rel="noopener noreferrer" className="hover:underline">SevinTeam</a></p>
+                     <p className="text-xs text-center text-neutral-500 dark:text-neutral-400 mt-2">{t('designedBy')} <a href="https://sevintm.com" target="_blank" rel="noopener noreferrer" className="hover:underline">SevinTeam</a></p>
                 </footer>
             </main>
-            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} isBotVoiceEnabled={isBotVoiceEnabled} setIsBotVoiceEnabled={setIsBotVoiceEnabled} botVoice={botVoice} setBotVoice={setBotVoice} appFont={appFont} setAppFont={setAppFont} isMapEnabled={isMapEnabled} setIsMapEnabled={setIsMapEnabled} />
-            <FAQModal isOpen={isFAQOpen} onClose={() => setIsFAQOpen(false)} faqs={faqs} />
+            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} isBotVoiceEnabled={isBotVoiceEnabled} setIsBotVoiceEnabled={setIsBotVoiceEnabled} botVoice={botVoice} setBotVoice={setBotVoice} appFont={appFont} setAppFont={setAppFont} isMapEnabled={isMapEnabled} setIsMapEnabled={setIsMapEnabled} language={language} setLanguage={setLanguage} theme={theme} setTheme={setTheme} t={t} />
+            <FAQModal isOpen={isFAQOpen} onClose={() => setIsFAQOpen(false)} faqs={faqs} t={t}/>
         </div>
     );
 };

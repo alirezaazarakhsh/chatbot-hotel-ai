@@ -14,11 +14,11 @@ export default defineConfig(({ mode }) => {
           target: 'https://cps.safarnameh24.com',
           changeOrigin: true,
           secure: false, // Bypasses SSL certificate validation for the proxy
-          // The server is likely rejecting requests based on Origin/Referer headers.
-          // We set them to match the target host to bypass these checks during local development.
+          // Use the 'headers' option for a more direct and reliable way to set headers,
+          // ensuring the server's security policy (checking Origin/Referer) is satisfied.
           headers: {
-            Origin: 'https://cps.safarnameh24.com',
-            Referer: 'https://cps.safarnameh24.com/',
+            'Origin': 'https://cps.safarnameh24.com',
+            'Referer': 'https://cps.safarnameh24.com/',
           },
         },
       },
