@@ -7,6 +7,8 @@ export const apiService = {
         const settingsResponse = await fetch(`${API_BASE_URL}/settings/`);
         if (!settingsResponse.ok) throw new Error('Failed to fetch bot settings');
         const settings = await settingsResponse.json();
+        
+        // This fetch correctly retrieves hotel links from the specified API endpoint.
         const hotelLinksResponse = await fetch(`/api/v1/hotel/hotels/chatbot/`);
         if (!hotelLinksResponse.ok) throw new Error('Failed to fetch hotel links');
         const hotelLinks: HotelLink[] = await hotelLinksResponse.json();
