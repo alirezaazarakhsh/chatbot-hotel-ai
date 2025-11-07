@@ -245,13 +245,16 @@ const FAQModal: React.FC<{ isOpen: boolean; onClose: () => void; faqs: FAQ[]; t:
                     <button onClick={onClose} className="p-1.5 text-neutral-600 dark:text-neutral-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700"><Icons.Close /></button>
                 </div>
                 <div className="overflow-y-auto p-4 space-y-4">
-                    {faqs.map((faq) => (
-                        <div key={faq.id} className="border border-neutral-200 dark:border-neutral-800 rounded-lg p-4 bg-neutral-50 dark:bg-neutral-900/50">
-                            <h3 className="font-semibold text-lg text-[#F30F26] mb-2">{faq.question}</h3>
-                            <p className="text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">{faq.answer}</p>
-                        </div>
-                    ))}
-                    {faqs.length === 0 && <p className="text-center py-8 text-neutral-500">{t('noFaqs')}</p>}
+                    {faqs && faqs.length > 0 ? (
+                        faqs.map((faq) => (
+                            <div key={faq.id} className="border border-neutral-200 dark:border-neutral-800 rounded-lg p-4 bg-neutral-50 dark:bg-neutral-900/50">
+                                <h3 className="font-semibold text-lg text-[#F30F26] mb-2">{faq.question}</h3>
+                                <p className="text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">{faq.answer}</p>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-center py-8 text-neutral-500">{t('noFaqs')}</p>
+                    )}
                 </div>
             </div>
         </div>
@@ -281,14 +284,13 @@ const SettingsModal: React.FC<{
     }));
 
     return (
-// FIX: The `onClick` handler expects a function that can receive a MouseEvent. The `onClose` prop function does not expect any arguments. Wrapping `onClose` in an arrow function `() => onClose()` resolves this potential type mismatch, which likely caused the error reported on this line.
-        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 flex items-center justify-center p-4" onClick={() => onClose()}>
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-white dark:bg-[#1C1C1C] border dark:border-neutral-700 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center p-4 border-b dark:border-neutral-800">
                     <h2 className="text-xl font-bold text-black dark:text-white">{t('settingsTitle')}</h2>
-                    <button onClick={() => onClose()} className="p-1.5 text-neutral-500 dark:text-neutral-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700"><Icons.Close /></button>
+                    <button onClick={onClose} className="p-1.5 text-neutral-500 dark:text-neutral-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700"><Icons.Close /></button>
                 </div>
-                <div className="p-6 space-y-6 text-black dark:text-white">
+                <div className="p-6 space-y-6 text-black dark:text-white max-h-[calc(100vh-10rem)] overflow-y-auto">
                     <div className="flex items-center justify-between"><label className="font-medium text-neutral-700 dark:text-neutral-300">{t('voiceResponse')}</label><ToggleSwitch enabled={isBotVoiceEnabled} onChange={setIsBotVoiceEnabled} /></div>
                     <div className="border-t dark:border-neutral-800"></div>
                     <div className="flex items-center justify-between"><label className="font-medium text-neutral-700 dark:text-neutral-300">{t('showMap')}</label><ToggleSwitch enabled={isMapEnabled} onChange={setIsMapEnabled} /></div>
@@ -343,7 +345,9 @@ const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; isLastMe
     const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl, isCancelled } = message;
     const [displayedText, setDisplayedText] = useState('');
     const [location, setLocation] = useState<string | null>(null);
-    const animationFrameRef = useRef<number>();
+    // FIX: Initialize useRef with null to support older @types/react that may not have the no-argument overload for useRef.
+    // The original error "Expected 1 arguments, but got 0" likely pointed to the wrong line number.
+    const animationFrameRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (sender === 'bot' && text) {
@@ -438,7 +442,22 @@ const useAppLogic = (language: Language) => {
             try {
                 const settings = await apiService.fetchBotSettings();
                 setBotSettings(prev => ({...prev, ...settings}));
-                const faqsData = await apiService.fetchFAQs(); setFaqs(faqsData);
+                const faqsData = await apiService.fetchFAQs(); 
+                
+                // Translate FAQs if language is English
+                const translatedFaqs = language === 'en' ? await Promise.all(faqsData.map(async (faq) => {
+                     const titlePrompt = `Translate the following FAQ to English. Respond with JSON in this exact format {"q": "...", "a": "..."}. Do not add any other text.\n\nQuestion: "${faq.question}"\nAnswer: "${faq.answer}"`;
+                     try {
+                        const translationResponse = await apiService.sendChatMessage({ message: titlePrompt, system_instruction: "You are a JSON translation service." }, new AbortController().signal);
+                        const parsed = JSON.parse(translationResponse.replace(/```json\n?|\n?```/g, ''));
+                        return { ...faq, question: parsed.q, answer: parsed.a };
+                     } catch (e) {
+                         return faq; // Fallback to original
+                     }
+                })) : faqsData;
+                
+                setFaqs(translatedFaqs);
+                
                 if (conversations.length === 0) startNewChat();
                 else setActiveChatId(conversations.reduce((a, b) => a.lastUpdated > b.lastUpdated ? a : b).id);
             } catch (error) { 
@@ -449,7 +468,7 @@ const useAppLogic = (language: Language) => {
         };
         initializeApp();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [language]); // Re-initialize if language changes to get translated FAQs
 
     const updateBotMessage = useCallback((botMessageId: string, updates: Partial<Message> | ((prevMessage: Message) => Partial<Message>)) => {
         if (!activeChatId) return;
@@ -466,7 +485,7 @@ const useAppLogic = (language: Language) => {
     
     const handleSendMessage = useCallback(async (
         messageData: { text?: string; audio?: { data: string; mimeType: string; url: string; }; image?: { dataUrl: string; base64: string; mimeType: string; }; },
-        { isBotVoiceEnabled, botVoice, hotelLinks, faqs, initAudioContext, queueAndPlayTTS }:
+        { isBotVoiceEnabled, botVoice, hotelLinks, faqs: currentFaqs, initAudioContext, queueAndPlayTTS }:
         { isBotVoiceEnabled: boolean; botVoice: BotVoice; hotelLinks: HotelLink[]; faqs: FAQ[]; initAudioContext: () => void; queueAndPlayTTS: (text: string, messageId: string) => Promise<void> }
     ) => {
         const { text = '', audio, image } = messageData;
@@ -495,9 +514,30 @@ const useAppLogic = (language: Language) => {
               }));
             
             const hotelContext = `[HOTEL LIST]\n${hotelLinks.map(h => `- ${h.name}: ${h.url}`).join('\n')}`;
-            const faqContext = `[FAQ]\n${faqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n')}`;
-            
-            const systemPrompt = `[ROLE & GOAL]\nYou are a world-class, friendly, and expert travel assistant for Safarnameh24, an Iranian travel agency. Your primary goal is to provide helpful, accurate, and concise information to users planning their travels in and around Iran.\n\n[CONTEXTUAL DATA]\nYou have access to two critical pieces of information. YOU MUST USE THIS DATA STRICTLY.\n1. ${hotelContext}\n2. ${faqContext}\n\n[RESPONSE RULES - VERY IMPORTANT]\n1. **Language Detection:** You MUST detect the language of the user's last message and respond in THAT language. You can seamlessly switch between Persian and English.\n2. **Hotel Links (CRITICAL):**\n   - When a user asks for a hotel, find it in the [HOTEL LIST].\n   - If the hotel is IN the list, you MUST provide its EXACT URL from the list.\n   - If the hotel is NOT in the list, you MUST state: "متاسفانه این هتل در سفرنامه ۲۴ موجود نیست." (in Persian) or "Unfortunately, this hotel is not available on Safarnameh24." (in English).\n   - **ABSOLUTELY NEVER** provide links from any other website (like a hotel's own site). Only use safarnameh24.com links from the provided context.\n   - **FORMATTING:** Present URLs as clean, raw text (e.g., https://...). **DO NOT** use Markdown formatting like [text](url).\n3. **FAQ Usage:** Use the [FAQ] data to answer relevant questions (e.g., about working hours).\n4. **Location Recognition:** When you identify a specific, real-world location (hotel, attraction, city), you MUST embed its coordinates in your response using this EXACT format: (Location: LAT,LONG). Example: (Location: 35.7601,51.4118).\n5. **Image Analysis:** If the user's message includes an image, analyze it. If it's a travel-related location (landmark, hotel, city), describe it. If it's not travel-related, state that it's not relevant to travel planning.\n6. **Persona:** Be polite, helpful, and professional. Keep answers concise.`;
+            const faqContext = `[FAQ]\n${currentFaqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n')}`;
+            const languageConstraint = language === 'en' ? "You MUST speak and respond ONLY in English. If the user speaks another language, politely ask them to switch to English." : "You MUST detect the language of the user's last message and respond in THAT language. You can seamlessly switch between Persian and English.";
+
+            const systemPrompt = `[ROLE & GOAL]
+You are a world-class, friendly, and expert travel assistant for Safarnameh24, an Iranian travel agency. Your primary goal is to provide helpful, accurate, and concise information to users planning their travels. Your knowledge is strictly limited to travel-related topics: hotels, restaurants, tourist attractions (cities, villages), recreational/sports facilities, and welfare/medical centers. You must politely decline any off-topic questions. The current date is 15 Aban 1404. You CANNOT make reservations for users.
+
+[CONTEXTUAL DATA]
+You have access to two critical pieces of information. YOU MUST USE THIS DATA STRICTLY.
+1. ${hotelContext}
+2. ${faqContext}
+
+[RESPONSE RULES - VERY IMPORTANT]
+1. **Language Rules:** ${languageConstraint}
+2. **Hotel Links (CRITICAL):**
+   - When a user asks for a hotel, find it in the [HOTEL LIST].
+   - If the hotel is IN the list, you MUST provide its EXACT URL from the list (e.g., https://safarnameh24.com/best-hotels/espinaspalace/).
+   - If the hotel is NOT in the list, you MUST state: "متاسفانه این هتل در سفرنامه ۲۴ موجود نیست." (in Persian) or "Unfortunately, this hotel is not available on Safarnameh24." (in English).
+   - **ABSOLUTELY NEVER** provide links from any other website (like a hotel's own site). Only use safarnameh24.com links from the provided context.
+   - **FORMATTING:** Present URLs as clean, raw text. **DO NOT** use Markdown formatting like [text](url). The URL must start with https://.
+3. **FAQ Usage:** Use the [FAQ] data to answer relevant questions (e.g., about working hours).
+4. **Location Recognition:** When you identify a specific, real-world location (hotel, attraction, city), you MUST embed its coordinates in your response using this EXACT format: (Location: LAT,LONG). Example: (Location: 35.7601,51.4118).
+5. **Voice Input:** If a user sends a voice message, understand their transcribed request and respond accordingly.
+6. **Image Analysis:** If the user's message includes an image, analyze it. If it's a travel-related location (landmark, hotel, city), describe it. If it's not travel-related, state that it's not relevant to travel planning.
+7. **Persona:** Be polite, helpful, and professional. Keep answers concise.`;
 
             const payload = {
                 message: text,
@@ -520,7 +560,7 @@ const useAppLogic = (language: Language) => {
             }
         } catch (error) {
             if ((error as Error).name === 'AbortError') {
-                updateBotMessage(botMessage.id, (prev) => ({ text: prev.text, isSpeaking: false, isCancelled: true }));
+                updateBotMessage(botMessage.id, (prev) => ({ text: prev.text || t('responseStopped'), isSpeaking: false, isCancelled: true }));
             } else { 
                 const errorMessage = error instanceof Error ? error.message : t('errorOccurred'); 
                 updateBotMessage(botMessage.id, { text: `${t('errorMessage')}${errorMessage}`, isSpeaking: false }); 
@@ -709,11 +749,9 @@ const App: React.FC = () => {
                         ))}
                     </div>
                 </div>
-                <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-2">
-                    <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                        <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-center flex-1 p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Settings /><span className="ms-2">{t('settings')}</span></button>
-                        <button onClick={() => setIsFAQOpen(true)} className="flex items-center justify-center flex-1 p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.FAQ /><span className="ms-2">{t('faq')}</span></button>
-                    </div>
+                 <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-2">
+                    <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-center w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Settings /><span className="ms-2">{t('settings')}</span></button>
+                    <button onClick={() => setIsFAQOpen(true)} className="flex items-center justify-center w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.FAQ /><span className="ms-2">{t('faq')}</span></button>
                 </div>
             </aside>
 
