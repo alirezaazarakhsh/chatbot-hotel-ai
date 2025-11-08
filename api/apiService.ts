@@ -1,11 +1,10 @@
 
-import { API_BASE_URL } from '../constants';
 import { HotelLink, FAQ, BotVoice, BotSettings } from '../types';
 
 export const apiService = {
     fetchBotSettings: async (): Promise<Partial<BotSettings>> => {
         try {
-            const response = await fetch(`${API_BASE_URL}/settings/`);
+            const response = await fetch(`/api/v1/chatbot/settings/`);
             if (!response.ok) {
                 console.error(`Failed to fetch bot settings. Status: ${response.status}.`);
                 return {};
@@ -18,7 +17,7 @@ export const apiService = {
     },
     fetchHotelLinks: async (): Promise<HotelLink[]> => {
         try {
-            const response = await fetch(`/api/v1/hotel/hotels/chatbot/`);
+            const response = await fetch(`/api/v1/hotels/chatbot/`);
             if (!response.ok) {
                 console.error(`Failed to fetch hotel links. Status: ${response.status}.`);
                 return [];
@@ -36,7 +35,7 @@ export const apiService = {
     },
     fetchFAQs: async (): Promise<FAQ[]> => {
         try {
-            const response = await fetch(`${API_BASE_URL}/faqs/`);
+            const response = await fetch(`/api/v1/chatbot/faqs/`);
             if (!response.ok) {
                 console.error(`Failed to fetch FAQs. Status: ${response.status}.`);
                 return [];
@@ -48,7 +47,7 @@ export const apiService = {
         }
     },
     generateTTS: async (text: string, voice: BotVoice): Promise<{ audio_data: string }> => {
-        const response = await fetch(`${API_BASE_URL}/tts/`, {
+        const response = await fetch(`/api/v1/chatbot/tts/`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text, voice_name: voice })
         });

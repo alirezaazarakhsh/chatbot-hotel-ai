@@ -10,20 +10,9 @@ import { SettingsModal } from './components/SettingsModal';
 import { FAQModal, UpdateModal } from './components/FAQModal';
 import { MessageRenderer } from './components/MessageRenderer';
 import { changelog } from './i18n/translations';
+import { audioUtils } from './utils/audioUtils';
 
 const packageVersion = process.env.APP_VERSION;
-
-// Helper function to decode base64 string to Uint8Array, moved from audioUtils
-const decode = (base64: string): Uint8Array => {
-    const binaryString = atob(base64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
-};
-
 
 // --- MAIN APP COMPONENT ---
 const App: React.FC = () => {
@@ -108,7 +97,7 @@ const App: React.FC = () => {
         }
         try {
             const { audio_data } = await apiService.generateTTS(text, botVoice);
-            const decodedBytes = decode(audio_data);
+            const decodedBytes = audioUtils.decode(audio_data);
             const audioBuffer = await ctx.decodeAudioData(decodedBytes.buffer);
             
             const source = ctx.createBufferSource();
