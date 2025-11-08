@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenAI, Modality, Part, GenerateContentResponse } from '@google/genai';
+import { GoogleGenAI, GenerateContentResponse, Part } from '@google/genai';
 import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language, TravelPackage } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 import { apiService } from '../api/apiService';
@@ -128,6 +128,28 @@ export const useAppLogic = (language: Language) => {
         }
     }, []);
 
+    const generateConversationTitle = useCallback(async (chatId: string, messages: Message[]) => {
+        try {
+            if (!process.env.API_KEY) return;
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const conversationText = messages.map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text}`).join('\n');
+            const prompt = `${t('generateTitlePrompt')}\n\n---\n${conversationText}\n---`;
+            
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            
+            const title = response.text.trim().replace(/"/g, '');
+            
+            if (title) {
+                setConversations(prev => prev.map(c => c.id === chatId ? { ...c, title } : c));
+            }
+        } catch (error) {
+            console.error("Error generating title:", error);
+        }
+    }, [setConversations, t]);
+
     const handleSendMessage = useCallback(async (
         input: { text?: string; image?: { base64: string; mimeType: string; dataUrl: string; }, audio?: { base64: string; mimeType: string; dataUrl: string; } },
         callbacks: {
@@ -143,6 +165,8 @@ export const useAppLogic = (language: Language) => {
 
         const conversation = conversations.find(c => c.id === activeChatId);
         if (!conversation) { setIsLoading(false); return; }
+        
+        const isNewChat = conversation.messages.length === 0;
 
         const userMessage: Message = {
             id: `msg_${Date.now()}_user`,
@@ -159,13 +183,6 @@ export const useAppLogic = (language: Language) => {
         };
         
         const updatedConversation: Conversation = { ...conversation, messages: [...conversation.messages, userMessage, botMessage], lastUpdated: Date.now() };
-        if (conversation.messages.length === 0) {
-            if (input.text && !input.audio) {
-                updatedConversation.title = input.text.substring(0, 35);
-            } else if (input.audio) {
-                updatedConversation.title = t('voiceMessageTitle');
-            }
-        }
         setConversations(prev => prev.map(c => c.id === activeChatId ? updatedConversation : c));
 
         try {
@@ -237,6 +254,10 @@ export const useAppLogic = (language: Language) => {
             const groundingChunks = finalResponse?.candidates?.[0]?.groundingMetadata?.groundingChunks;
             updateBotMessage(botMessage.id, { text: botResponseText, groundingChunks });
             
+            if (isNewChat && activeChatId) {
+                generateConversationTitle(activeChatId, [userMessage, { ...botMessage, text: botResponseText }]);
+            }
+
             const imagePromptRegex = /\[GENERATE_IMAGE:\s*(.*?)\]/s;
             const imagePromptMatch = botResponseText.match(imagePromptRegex);
 
@@ -249,17 +270,15 @@ export const useAppLogic = (language: Language) => {
                 let imageUrl: string | undefined = undefined;
 
                 try {
-                    const imageResponse = await ai.models.generateContent({
-                        model: 'gemini-2.5-flash-image',
-                        contents: { parts: [{ text: imagePrompt }] },
-                        config: { responseModalities: [Modality.IMAGE] },
+                    const imageResponse = await ai.models.generateImages({
+                        model: 'imagen-4.0-generate-001',
+                        prompt: imagePrompt,
+                        config: { numberOfImages: 1 }
                     });
                     
-                    for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
-                        if (part.inlineData) {
-                            imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-                            break;
-                        }
+                    if (imageResponse.generatedImages && imageResponse.generatedImages.length > 0) {
+                         const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
+                         imageUrl = `data:image/png;base64,${base64ImageBytes}`;
                     }
                     if (!imageUrl) finalBotText = `${finalBotText}\n\n${t('imageGenerationError')}`.trim();
                 } catch (imageError) {
@@ -288,7 +307,7 @@ export const useAppLogic = (language: Language) => {
             setIsLoading(false);
             abortController.current = null;
         }
-    }, [activeChatId, conversations, isLoading, botSettings.system_instruction, setConversations, updateBotMessage, t]);
+    }, [activeChatId, conversations, isLoading, botSettings.system_instruction, setConversations, updateBotMessage, t, generateConversationTitle]);
 
     const handleFeedback = useCallback((messageId: string, feedback: 'like' | 'dislike') => {
         setConversations(prev => prev.map(c => {

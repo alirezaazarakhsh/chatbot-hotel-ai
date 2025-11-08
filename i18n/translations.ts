@@ -54,6 +54,8 @@ export const translations = {
 2.  If a user's query matches a destination or package name, present the details from the list: name, destination, duration, price, and the booking 'url'.
 3.  Encourage the user to book the package through the provided official link. Do not provide links from other websites.`,
         travelPackageListHeader: 'Here is the official list of travel packages. You MUST use this data to answer questions about tours:',
+        noSearchResults: 'No results found',
+        generateTitlePrompt: 'Generate a short, concise title (max 5 words) for the following conversation:',
     },
     fa: {
         newChat: 'گفتگوی جدید', chatHistory: 'تاریخچه گفتگو', settings: 'تنظیمات', faq: 'سوالات متداول',
@@ -101,10 +103,28 @@ export const translations = {
 ۲. اگر درخواست کاربر با مقصد یا نام پکیجی مطابقت داشت، جزئیات را از لیست ارائه دهید: نام، مقصد، مدت زمان، قیمت و لینک رزرو 'url'.
 ۳. کاربر را تشویق کنید تا تور را از طریق لینک رسمی ارائه شده رزرو کند. از ارائه لینک از وب‌سایت‌های دیگر خودداری کنید.`,
         travelPackageListHeader: 'این لیست رسمی تورهای مسافرتی است. شما باید از این داده‌ها برای پاسخ به سوالات در مورد تورها استفاده کنید:',
+        noSearchResults: 'نتیجه‌ای یافت نشد',
+        generateTitlePrompt: 'یک عنوان کوتاه و مختصر (حداکثر ۵ کلمه) برای گفتگوی زیر ایجاد کن:',
     }
 };
 
 export const changelog: ChangelogEntry[] = [
+     {
+        version: '1.4.0',
+        date: { en: 'August 2, 2024', fa: '۱۲ مرداد ۱۴۰۳' },
+        changes: {
+            en: [
+                'Added automatic conversation titling for easier chat history navigation.',
+                'Upgraded image generation to a more powerful model for higher quality results.',
+                'Improved chat history search with a clear button and a "no results" message.'
+            ],
+            fa: [
+                'اضافه شدن قابلیت عنوان‌گذاری خودکار گفتگوها برای ناوبری آسان‌تر در تاریخچه.',
+                'ارتقاء قابلیت ساخت تصویر به مدلی قدرتمندتر برای نتایج با کیفیت بالاتر.',
+                'بهبود جستجوی تاریخچه گفتگو با دکمه پاک‌سازی و پیام «نتیجه‌ای یافت نشد».'
+            ]
+        }
+    },
     {
         version: '1.3.0',
         date: { en: 'August 1, 2024', fa: '۱۱ مرداد ۱۴۰۳' },

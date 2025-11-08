@@ -216,6 +216,7 @@ const App: React.FC = () => {
         ? `h-full flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'lg:mr-72' : ''}`
         : `h-full flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'lg:ml-72' : ''}`;
 
+    const filteredConversations = conversations.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return (
         <div className="h-screen bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden" style={{ fontFamily: appFont }}>
@@ -232,19 +233,28 @@ const App: React.FC = () => {
                             placeholder={t('searchChats')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full p-2 border rounded-lg bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 focus:outline-none focus:ring-1 focus:ring-[#F30F26] ps-9"
+                            className="w-full p-2 border rounded-lg bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 focus:outline-none focus:ring-1 focus:ring-[#F30F26] ps-9 pe-9"
                         />
+                         {searchQuery && (
+                            <button onClick={() => setSearchQuery('')} className={`absolute inset-y-0 flex items-center text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 ${language === 'fa' ? 'left-3' : 'right-3'}`}>
+                                <Icons.Close className="h-4 w-4" />
+                            </button>
+                        )}
                     </div>
                     <div className="flex-grow overflow-y-auto pe-2">
                         <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 my-2">{t('chatHistory')}</h2>
-                        {conversations.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase())).slice().reverse().map(c => (
-                            <div key={c.id} className="relative group">
-                                <button onClick={() => { setActiveChatId(c.id); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full text-start p-2 my-1 rounded-md truncate ${activeChatId === c.id ? 'bg-neutral-200 dark:bg-neutral-700' : 'hover:bg-neutral-200 dark:hover:bg-neutral-700'}`}>{c.title}</button>
-                                <div className="absolute top-1/2 -translate-y-1/2 end-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => handleDeleteConversation(c.id)} className="p-1.5 rounded-md hover:bg-red-500/20 text-neutral-500 hover:text-red-500"><Icons.Trash /></button>
+                        {filteredConversations.length > 0 ? (
+                             filteredConversations.slice().reverse().map(c => (
+                                <div key={c.id} className="relative group">
+                                    <button onClick={() => { setActiveChatId(c.id); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full text-start p-2 my-1 rounded-md truncate ${activeChatId === c.id ? 'bg-neutral-200 dark:bg-neutral-700' : 'hover:bg-neutral-200 dark:hover:bg-neutral-700'}`}>{c.title}</button>
+                                    <div className="absolute top-1/2 -translate-y-1/2 end-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => handleDeleteConversation(c.id)} className="p-1.5 rounded-md hover:bg-red-500/20 text-neutral-500 hover:text-red-500"><Icons.Trash /></button>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))
+                        ) : (
+                            <p className="text-center text-sm text-neutral-500 dark:text-neutral-400 p-4">{t('noSearchResults')}</p>
+                        )}
                     </div>
                 </div>
                  <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-2">
