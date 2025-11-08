@@ -16,7 +16,10 @@ export const translations = {
         responseStopped: 'Response stopped.', micAccessDenied: 'Microphone access denied.', language: 'Language',
         persian: 'فارسی', english: 'English', copied: 'Copied!', sendImage: 'Send Image',
         imagePreview: 'Image Preview', removeImage: 'Remove image', theme: 'Theme', light: 'Light', dark: 'Dark',
-        chatbotTitle: 'Safarnameh24 AI Chatbot',
+        chatbotTitle: 'Safarnameh24 AI Chatbot', searchChats: 'Search chats...',
+        imageGenerationInstruction: 'If the user asks you to create an image, you must use the following format and nothing else in your response: [GENERATE_IMAGE: A detailed description of the image to be created]',
+        generatingImage: 'Generating your image...',
+        imageGenerationError: 'Sorry, I couldn\'t create the image. Please try again.',
     },
     fa: {
         newChat: 'گفتگوی جدید', chatHistory: 'تاریخچه گفتگو', settings: 'تنظیمات', faq: 'سوالات متداول',
@@ -31,6 +34,9 @@ export const translations = {
         responseStopped: 'پاسخ متوقف شد.', micAccessDenied: 'امکان دسترسی به میکروفون وجود ندارد.', language: 'زبان',
         persian: 'فارسی', english: 'English', copied: 'کپی شد!', sendImage: 'ارسال عکس',
         imagePreview: 'پیش‌نمایش عکس', removeImage: 'حذف عکس', theme: 'حالت نمایش', light: 'روشن', dark: 'تاریک',
-        chatbotTitle: 'چت بات هوشمند سفرنامه ۲۴',
+        chatbotTitle: 'چت بات هوشمند سفرنامه ۲۴', searchChats: 'جستجوی گفتگوها...',
+        imageGenerationInstruction: 'اگر کاربر از شما خواست تصویری ایجاد کنید، باید از فرمت زیر در پاسخ خود استفاده کنید و هیچ چیز دیگری در پاسخ خود قرار ندهید: [GENERATE_IMAGE: توضیحات دقیق در مورد تصویری که باید ایجاد شود]',
+        generatingImage: 'در حال ساخت تصویر شما...',
+        imageGenerationError: 'متاسفانه در ساخت تصویر مشکلی پیش آمد. لطفا دوباره تلاش کنید.',
     }
 };

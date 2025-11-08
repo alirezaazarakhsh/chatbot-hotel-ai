@@ -4,10 +4,18 @@ import { HotelLink, FAQ, BotVoice, BotSettings } from '../types';
 
 export const apiService = {
     fetchBotSettings: async (): Promise<Partial<BotSettings>> => {
-        const settingsResponse = await fetch(`${API_BASE_URL}/settings/`);
-        if (!settingsResponse.ok) throw new Error('Failed to fetch bot settings');
-        const settings = await settingsResponse.json();
-        
+        let settings: Partial<BotSettings> = {};
+        try {
+            const settingsResponse = await fetch(`${API_BASE_URL}/settings/`);
+            if (settingsResponse.ok) {
+                settings = await settingsResponse.json();
+            } else {
+                console.error(`Failed to fetch bot settings. Status: ${settingsResponse.status}. The app will use default settings.`);
+            }
+        } catch (error) {
+            console.error('Error fetching bot settings:', error, 'The app will use default settings.');
+        }
+
         // This fetch correctly retrieves hotel links from the specified API endpoint.
         const hotelLinksResponse = await fetch(`/api/v1/hotel/hotels/chatbot/`);
         if (!hotelLinksResponse.ok) throw new Error('Failed to fetch hotel links');

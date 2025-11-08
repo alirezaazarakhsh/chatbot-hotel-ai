@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -38,6 +39,7 @@ const App: React.FC = () => {
     const [isMapEnabled, setIsMapEnabled] = useLocalStorage('isMapEnabled', true);
     const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
     const [imageToSend, setImageToSend] = useState<{ dataUrl: string; base64: string; mimeType: string; } | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const endOfMessagesRef = useRef<HTMLDivElement>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -156,13 +158,25 @@ const App: React.FC = () => {
             {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden" />}
             <aside className={`flex flex-col bg-white dark:bg-neutral-900 transition-transform duration-300 ease-in-out ${sidebarClass}`}>
                 <div className="p-4 flex-grow flex flex-col min-h-0">
-                    <button onClick={startNewChat} className="flex items-center justify-center w-full px-4 py-2 mb-4 bg-[#F30F26] text-white rounded-lg hover:bg-red-700 transition-colors"><Icons.Plus />{t('newChat')}</button>
+                    <button onClick={startNewChat} className="flex items-center justify-center w-full px-4 py-2 mb-2 bg-[#F30F26] text-white rounded-lg hover:bg-red-700 transition-colors"><Icons.Plus />{t('newChat')}</button>
+                    <div className="relative mb-2">
+                        <span className="absolute inset-y-0 flex items-center pointer-events-none text-neutral-400 start-3">
+                            <Icons.Search />
+                        </span>
+                        <input
+                            type="text"
+                            placeholder={t('searchChats')}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full p-2 border rounded-lg bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 focus:outline-none focus:ring-1 focus:ring-[#F30F26] ps-9"
+                        />
+                    </div>
                     <div className="flex-grow overflow-y-auto pe-2">
-                        <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 mb-2">{t('chatHistory')}</h2>
-                        {conversations.slice().reverse().map(c => (
+                        <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 my-2">{t('chatHistory')}</h2>
+                        {conversations.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase())).slice().reverse().map(c => (
                             <div key={c.id} className="relative group">
                                 <button onClick={() => { setActiveChatId(c.id); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} className={`w-full text-start p-2 my-1 rounded-md truncate ${activeChatId === c.id ? 'bg-neutral-200 dark:bg-neutral-700' : 'hover:bg-neutral-200 dark:hover:bg-neutral-700'}`}>{c.title}</button>
-                                <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity ${language === 'fa' ? 'left-2' : 'right-2'}`}>
+                                <div className="absolute top-1/2 -translate-y-1/2 end-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button onClick={() => handleDeleteConversation(c.id)} className="p-1.5 rounded-md hover:bg-red-500/20 text-neutral-500 hover:text-red-500"><Icons.Trash /></button>
                                 </div>
                             </div>
@@ -177,13 +191,18 @@ const App: React.FC = () => {
 
             <main className={mainClass}>
                 <header className="flex items-center justify-between p-2 sm:p-4 border-b bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 flex-shrink-0">
-                    <div className="lg:hidden">{language === 'fa' ? <div className="w-10 h-10"></div> : <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Menu /></button>}</div>
+                    <div className="w-10 h-10 flex items-center justify-center">
+                        {/* This is a placeholder to balance the header */}
+                    </div>
                     <div className="flex items-center gap-3">
                         <h1 className="text-lg font-semibold truncate">{t('chatbotTitle')}</h1>
                         <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div>
                     </div>
-                    <div className="lg:hidden">{language === 'fa' ? <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Menu /></button> : <div className="w-10 h-10"></div>}</div>
-                    <div className="hidden lg:block">{language === 'fa' ? <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Menu /></button> : null}</div>
+                    <div className="w-10 h-10 flex items-center justify-center">
+                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700">
+                            <Icons.Menu />
+                        </button>
+                    </div>
                 </header>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -191,7 +210,7 @@ const App: React.FC = () => {
                         <div className="space-y-6">
                             {activeConversation.messages.map((msg, index) => (
                                 <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[85%] md:max-w-2xl p-3 sm:p-4 rounded-2xl ${msg.sender === 'user' ? `bg-[#F30F26] text-white ${language === 'fa' ? 'rounded-br-none' : 'rounded-bl-none'}` : `bg-white dark:bg-neutral-700 ${language === 'fa' ? 'rounded-bl-none' : 'rounded-br-none'}`}`}>
+                                    <div className={`max-w-[85%] md:max-w-2xl p-3 sm:p-4 rounded-2xl ${msg.sender === 'user' ? 'bg-[#F30F26] text-white rounded-es-none' : 'bg-white dark:bg-neutral-700 rounded-ee-none'}`}>
                                        <MessageRenderer message={msg} isLoading={isLoading} isLastMessage={index === activeConversation.messages.length - 1} isMapEnabled={isMapEnabled} onCopy={handleCopy} copiedMessageId={copiedMessageId} t={t} />
                                     </div>
                                 </div>
@@ -222,9 +241,9 @@ const App: React.FC = () => {
                     {imageToSend && (<div className="relative mb-2 w-20 h-20"><img src={imageToSend.dataUrl} alt={t('imagePreview')} className="w-full h-full object-cover rounded-lg"/><button onClick={() => setImageToSend(null)} className={`absolute -top-2 bg-neutral-800 text-white rounded-full p-0.5 w-6 h-6 flex items-center justify-center ${language === 'fa' ? '-right-2' : '-left-2'}`} aria-label={t('removeImage')}><Icons.Close /></button></div>)}
                     <div className="relative">
                          <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden"/>
-                        <textarea value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} placeholder={t('messagePlaceholder')} className="w-full py-3 ps-12 pe-20 sm:pe-24 text-base bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none" rows={1} disabled={isLoading} />
-                         <div className={`absolute top-1/2 -translate-y-1/2 ${language === 'fa' ? 'right-2 sm:right-3' : 'left-2 sm:left-3'}`}><button onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!imageToSend} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50" title={t('sendImage')}><Icons.Paperclip /></button></div>
-                         <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 ${language === 'fa' ? 'left-2 sm:left-3' : 'right-2 sm:left-3'}`}>
+                        <textarea value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} placeholder={t('messagePlaceholder')} className="w-full py-3 text-base bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none ps-12 pe-20 sm:pe-24" rows={1} disabled={isLoading} />
+                         <div className="absolute top-1/2 -translate-y-1/2 start-2 sm:start-3"><button onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!imageToSend} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50" title={t('sendImage')}><Icons.Paperclip /></button></div>
+                         <div className="absolute top-1/2 -translate-y-1/2 flex items-center gap-1 end-2 sm:end-3">
                             {isLoading ? (<button onClick={handleStopGenerating} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700" title={t('stopGenerating')}><Icons.StopGenerating /></button>)
                              : (
                                 <>
