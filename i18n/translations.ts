@@ -24,12 +24,13 @@ export const translations = {
         generatingImage: 'Creating your image, please wait a moment...',
         imageGenerationError: 'Sorry, there was an error creating the image. Please try another prompt.',
         hotelLinkInstruction: `ABSOLUTE and UNBREAKABLE RULE regarding hotel links:
-You are provided with an official list of hotels and their links. Your only job is to extract information from this list.
-1. If a user asks for a hotel that is in your list, you MUST copy the exact, full URL from the list and provide it as the response. Example: https://www.safarnameh24.com/best-hotels/espinaspalace
-2. If the hotel is NOT in your list, you MUST respond with only this exact sentence: "Unfortunately, the link for that hotel is not in my official list. Please search for it directly on safarnameh24.com."
-3. Guessing, creating, or searching for any other link is a major violation of your rules and is absolutely forbidden.
-4. Do not, under any circumstances, format the links with markdown, brackets, or parentheses. Provide the raw URL only.`,
-        hotelLinkListHeader: 'Here is the official list of hotels and their links you MUST use:',
+You are provided with an official list of hotels as a JSON array. Your only job is to use this data.
+1. When a user asks for a hotel, find the object in the provided JSON array where the 'name' property matches the user's request.
+2. You MUST return only the value of the 'url' property from that matching object. Do not add any other text.
+3. If you cannot find an exact match for the hotel name in the JSON array, you MUST respond with only this exact sentence: "Unfortunately, the link for that hotel is not in my official list. Please search for it directly on safarnameh24.com."
+4. Guessing, creating, or modifying a URL is a major violation of your rules and is absolutely forbidden.
+5. Do not format the URL as a markdown link. Provide the raw URL string only.`,
+        hotelLinkListHeader: 'Here is the official list of hotels as a JSON array. You MUST use this data to find the hotel URL:',
     },
     fa: {
         newChat: 'گفتگوی جدید', chatHistory: 'تاریخچه گفتگو', settings: 'تنظیمات', faq: 'سوالات متداول',
@@ -53,11 +54,12 @@ You are provided with an official list of hotels and their links. Your only job 
         generatingImage: 'در حال ساخت تصویر شما...',
         imageGenerationError: 'متاسفانه در ساخت تصویر مشکلی پیش آمد. لطفا دوباره تلاش کنید.',
         hotelLinkInstruction: `قانون مطلق و غیرقابل تخطی در مورد لینک هتل‌ها:
-شما یک لیست رسمی از هتل‌ها و لینک‌هایشان در اختیار دارید. وظیفه شما فقط و فقط استخراج اطلاعات از این لیست است.
-۱. اگر کاربر نام هتلی را پرسید که در لیست شما وجود دارد، شما **باید** و **حتماً** لینک دقیق و کامل آن را از لیست کپی کرده و به تنهایی در پاسخ قرار دهید. مثال: https://www.safarnameh24.com/best-hotels/espinaspalace
-۲. اگر هتل در لیست شما نبود، شما **باید** فقط و فقط این جمله را پاسخ دهید: «متاسفانه لینک هتل مورد نظر شما در لیست رسمی من وجود ندارد. لطفا نام آن را مستقیماً در سایت safarnameh24.com جستجو کنید.»
-۳. حدس زدن، ساختن، یا جستجوی هرگونه لینک دیگر یک **تخلف بزرگ** از قوانین شماست و مطلقاً ممنوع است.
-۴. به هیچ وجه لینک‌ها را در قالب مارک‌داون یا با براکت و پرانتز نفرستید. فقط URL خام.`,
-        hotelLinkListHeader: 'این لیست رسمی هتل‌ها و لینک‌های آن‌هاست که باید از آن استفاده کنید:',
+یک لیست رسمی از هتل‌ها در قالب یک آرایه JSON به شما داده شده است. وظیفه شما فقط و فقط استفاده از این داده‌هاست.
+۱. وقتی کاربر نام هتلی را می‌پرسد، شما باید در آرایه JSON ارائه شده، شیء مربوط به آن هتل را که مقدار کلید 'name' آن با درخواست کاربر مطابقت دارد، پیدا کنید.
+۲. شما **باید** فقط و فقط مقدار کلید 'url' را از همان شیء پیدا شده برگردانید. هیچ متن دیگری اضافه نکنید.
+۳. اگر نتوانستید نام هتل را به طور دقیق در آرایه JSON پیدا کنید، **باید** فقط و فقط این جمله را پاسخ دهید: «متاسفانه لینک هتل مورد نظر شما در لیست رسمی من وجود ندارد. لطفا نام آن را مستقیماً در سایت safarnameh24.com جستجو کنید.»
+۴. حدس زدن، ساختن، یا تغییر دادن URL یک **تخلف بزرگ** از قوانین شماست و مطلقاً ممنوع است.
+۵. لینک را در قالب مارک‌داون نفرستید. فقط رشته URL خام را برگردانید.`,
+        hotelLinkListHeader: 'این لیست رسمی هتل‌ها در قالب یک آرایه JSON است. شما باید از این داده‌ها برای یافتن لینک هتل استفاده کنید:',
     }
 };

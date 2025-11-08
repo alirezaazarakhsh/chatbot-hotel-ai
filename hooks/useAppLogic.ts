@@ -40,7 +40,7 @@ export const useAppLogic = (language: Language) => {
                 const voiceCapabilityInstruction = t('voiceCapabilityInstruction');
                 
                 const hotelLinksList = (combinedSettings.hotel_links && combinedSettings.hotel_links.length > 0)
-                    ? `${t('hotelLinkListHeader')}\n${combinedSettings.hotel_links.map(h => `- ${h.name}: ${h.url}`).join('\n')}`
+                    ? `${t('hotelLinkListHeader')}\n${JSON.stringify(combinedSettings.hotel_links, null, 2)}`
                     : '';
 
                 const systemInstruction = [
