@@ -23,7 +23,12 @@ export const translations = {
         imageGenerationInstruction: 'When asked to create an image, you MUST respond with ONLY the following special format, and no other text or explanation: [GENERATE_IMAGE: A detailed description of the image to create]',
         generatingImage: 'Creating your image, please wait a moment...',
         imageGenerationError: 'Sorry, there was an error creating the image. Please try another prompt.',
-        hotelLinkInstruction: 'You are provided with a list of official hotel links from safarnameh24.com. When a user asks for a hotel link, you absolutely MUST ONLY use the corresponding link from this list. Under NO circumstances should you provide a link from any other website (like the hotel\'s own site or other booking sites). All hotel links MUST come from the safarnameh24.com domain. If the hotel is not in the list, state that you do not have the direct link but you have prepared a search link on safarnameh24.com for their convenience. Then, provide the search link formatted like this: `https://safarnameh24.com/best-hotels/?q=QUERY` where `QUERY` is the hotel name the user asked for, with spaces replaced by `+`. For example, for "Espinas Palace Hotel", the link should be `https://safarnameh24.com/best-hotels/?q=Espinas+Palace+Hotel`. CRITICAL: When providing a hotel link, you MUST output the raw URL exactly as it appears in the list. Do not use any extra formatting, brackets, parentheses, or markdown links ([like this](url)). Just send the plain URL text.',
+        hotelLinkInstruction: `CRITICAL RULE: You are provided with an official list of hotels from safarnameh24.com. When a user asks for a hotel link, you MUST adhere to the following rules without exception:
+1.  Check your list for the hotel. If it exists, provide the corresponding URL from the list.
+2.  If the hotel is NOT in your list, you MUST state that you do not have the link for that specific hotel and recommend that the user search for it on the safarnameh24.com website.
+3.  You are ABSOLUTELY FORBIDDEN from providing links from any other source (like a hotel's official website, other booking agencies, or search results).
+4.  DO NOT create your own search links.
+5.  When providing a URL, you MUST output the raw URL text ONLY. Do not use any extra formatting, brackets, parentheses, or markdown (e.g., [link text](url)).`,
         hotelLinkListHeader: 'Here is the official list of hotels and their links you MUST use:',
     },
     fa: {
@@ -47,7 +52,12 @@ export const translations = {
         imageGenerationInstruction: 'اگر کاربر از شما خواست تصویری ایجاد کنید، باید از فرمت زیر در پاسخ خود استفاده کنید و هیچ چیز دیگری در پاسخ خود قرار ندهید: [GENERATE_IMAGE: توضیحات دقیق در مورد تصویری که باید ایجاد شود]',
         generatingImage: 'در حال ساخت تصویر شما...',
         imageGenerationError: 'متاسفانه در ساخت تصویر مشکلی پیش آمد. لطفا دوباره تلاش کنید.',
-        hotelLinkInstruction: 'شما لیستی از لینک‌های رسمی هتل‌ها از سایت safarnameh24.com را در اختیار دارید. وقتی کاربر درخواست لینک هتلی را دارد، شما مطلقاً و فقط باید از لینک مربوطه در این لیست استفاده کنید. تحت هیچ شرایطی لینک از وب‌سایت دیگری (مانند سایت خود هتل یا سایت‌های رزرو دیگر) ارائه ندهید. تمام لینک‌های هتل باید از دامنه safarnameh24.com باشند. اگر هتل در لیست نبود، به کاربر بگویید که لینک مستقیم آن را در لیست خود ندارید، اما برای راحتی او، یک لینک جستجو در سایت safarnameh24.com برایش آماده کرده‌اید. سپس، لینک جستجو را به این شکل ارائه دهید: `https://safarnameh24.com/best-hotels/?q=QUERY` که در آن `QUERY` نام هتلی است که کاربر درخواست کرده و فاصله‌ها با علامت `+` جایگزین شده‌اند. مثلا برای «هتل اسپیناس پالاس» لینک باید `https://safarnameh24.com/best-hotels/?q=هتل+اسپیناس+پالاس` باشد. نکته بسیار مهم: هنگام ارائه لینک هتل، باید URL را دقیقاً همانطور که در لیست آمده است، بدون هیچ‌گونه قالب‌بندی اضافی مانند براکت، پرانتز، یا لینک‌های مارک‌داون ([مانند این](آدرس))، نمایش دهید. فقط متن ساده URL را ارسال کنید.',
+        hotelLinkInstruction: `قانون بسیار مهم: شما لیستی رسمی از هتل‌ها و لینک‌های آن‌ها از سایت safarnameh24.com در اختیار دارید. زمانی که کاربر درخواست لینک هتل می‌کند، باید بدون استثنا از قوانین زیر پیروی کنید:
+۱. لیست خود را برای هتل مورد نظر بررسی کنید. اگر وجود داشت، URL مربوطه را از لیست ارائه دهید.
+۲. اگر هتل در لیست شما نبود، باید اعلام کنید که لینک آن هتل خاص را در اختیار ندارید و به کاربر پیشنهاد دهید آن را در وب‌سایت safarnameh24.com جستجو کند.
+۳. شما مطلقاً مجاز به ارائه لینک از هیچ منبع دیگری (مانند وب‌سایت رسمی خود هتل، سایر آژانس‌های رزرو، یا نتایج جستجو) نیستید.
+۴. لینک جستجو خودتان ایجاد نکنید.
+۵. هنگام ارائه URL، باید فقط متن خام URL را خروجی دهید. از هیچ‌گونه قالب‌ بندی اضافی، براکت، پرانتز، یا مارک‌داون (مثلاً [متن لینک](آدرس)) استفاده نکنید.`,
         hotelLinkListHeader: 'این لیست رسمی هتل‌ها و لینک‌های آن‌هاست که باید از آن استفاده کنید:',
     }
 };
