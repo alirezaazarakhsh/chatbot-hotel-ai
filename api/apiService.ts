@@ -18,7 +18,7 @@ export const apiService = {
     },
     fetchHotelLinks: async (): Promise<HotelLink[]> => {
         try {
-            const response = await fetch(`/api/v1/hotel/hotels/chatbot/`);
+            const response = await fetch(`${API_BASE_URL}/hotels/chatbot/`);
             if (!response.ok) {
                 console.error(`Failed to fetch hotel links. Status: ${response.status}.`);
                 return [];
@@ -46,18 +46,6 @@ export const apiService = {
             console.error('Error fetching FAQs:', error);
             return [];
         }
-    },
-    sendChatMessage: async (payload: any, signal: AbortSignal): Promise<string> => {
-        const response = await fetch(`${API_BASE_URL}/message/`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload), signal
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to send message');
-        }
-        const responseData = await response.json();
-        return responseData.response;
     },
     generateTTS: async (text: string, voice: BotVoice): Promise<{ audio_data: string }> => {
         const response = await fetch(`${API_BASE_URL}/tts/`, {

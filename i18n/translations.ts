@@ -1,6 +1,12 @@
 export type Language = 'en' | 'fa';
 export type Theme = 'light' | 'dark';
 
+export interface ChangelogEntry {
+  version: string;
+  date: { en: string; fa: string; };
+  changes: { en: string[]; fa: string[]; };
+}
+
 export const translations = {
     en: {
         newChat: 'New Chat', chatHistory: 'Chat History', settings: 'Settings', faq: 'FAQ',
@@ -16,20 +22,19 @@ export const translations = {
         persian: 'فارسی', english: 'English', copied: 'Copied!', copy: 'Copy', sendImage: 'Send Image',
         imagePreview: 'Image Preview', removeImage: 'Remove image', theme: 'Theme', light: 'Light', dark: 'Dark',
         chatbotTitle: 'Safarnameh24 AI Chatbot', searchChats: 'Search chats...',
-        likeResponse: 'Like response', dislikeResponse: 'Dislike response',
+        likeResponse: 'Like response', dislikeResponse: 'Dislike response', whatsNew: "What's New",
+        sources: 'Sources',
         botPersona: 'You are an AI assistant for Safarnameh24, a travel services company that provides hotel booking and other travel services on its website, safarnameh24.com. Your name is "Safarnameh Smart Assistant". You are an expert in travel and tourism in Iran and around the world. Be very friendly, helpful, and empathetic. Provide detailed and comprehensive answers. Your main goal is to encourage users to use and book services through the safarnameh24.com website.',
         languageRule: 'IMPORTANT: You must respond ONLY in English. Do not use any other language.',
         voiceCapabilityInstruction: "You are a voice-enabled assistant. When asked about your voice, explain that you are an AI that can speak using the device's text-to-speech technology, which gives you a voice to interact with users.",
         imageGenerationInstruction: 'When asked to create an image, you MUST respond with ONLY the following special format, and no other text or explanation: [GENERATE_IMAGE: A detailed description of the image to create]',
         generatingImage: 'Creating your image, please wait a moment...',
         imageGenerationError: 'Sorry, there was an error creating the image. Please try another prompt.',
-        hotelLinkInstruction: `ABSOLUTE and UNBREAKABLE RULE regarding hotel links:
-You are provided with an official list of hotels as a JSON array. Your only job is to use this data.
-1. When a user asks for a hotel, find the object in the provided JSON array where the 'name' property matches the user's request.
-2. You MUST return only the value of the 'url' property from that matching object. Do not add any other text.
-3. If you cannot find an exact match for the hotel name in the JSON array, you MUST respond with only this exact sentence: "Unfortunately, the link for that hotel is not in my official list. Please search for it directly on safarnameh24.com."
-4. Guessing, creating, or modifying a URL is a major violation of your rules and is absolutely forbidden.
-5. Do not format the URL as a markdown link. Provide the raw URL string only.`,
+        hotelLinkInstruction: `RULE for providing hotel information:
+1.  You have an official list of Safarnameh24 partner hotels in a JSON array. When a user asks for a hotel, FIRST check this list for an exact match by 'name'.
+2.  If a match is found in the JSON list, you MUST provide only the 'url' from that object. Do not add extra text or format it.
+3.  If the hotel is NOT in the JSON list, you should then use your other tools (like Google Maps) to provide general, helpful information about the hotel. In this case, state clearly that a direct booking link is not available on Safarnameh24 for this hotel.
+4.  Do not guess or create URLs. Prioritize the official JSON list for booking links.`,
         hotelLinkListHeader: 'Here is the official list of hotels as a JSON array. You MUST use this data to find the hotel URL:',
     },
     fa: {
@@ -46,20 +51,52 @@ You are provided with an official list of hotels as a JSON array. Your only job 
         persian: 'فارسی', english: 'English', copied: 'کپی شد!', copy: 'کپی', sendImage: 'ارسال عکس',
         imagePreview: 'پیش‌نمایش عکس', removeImage: 'حذف عکس', theme: 'حالت نمایش', light: 'روشن', dark: 'تاریک',
         chatbotTitle: 'چت بات هوشمند سفرنامه ۲۴', searchChats: 'جستجوی گفتگوها...',
-        likeResponse: 'پسندیدم', dislikeResponse: 'نپسندیدم',
+        likeResponse: 'پسندیدم', dislikeResponse: 'نپسندیدم', whatsNew: 'چه خبر؟',
+        sources: 'منابع',
         botPersona: 'شما یک دستیار هوش مصنوعی برای «سفرنامه ۲۴» هستید، یک شرکت خدمات مسافرتی که امکان رزرو هتل و سایر خدمات سفر را در وب‌سایت safarnameh24.com فراهم می‌کند. نام شما «دستیار هوشمند سفرنامه» است. شما در زمینه سفر و گردشگری در ایران و سراسر جهان متخصص هستید. بسیار دوستانه، مفید و همدل باشید. پاسخ‌های دقیق و جامع ارائه دهید. هدف اصلی شما تشویق کاربران برای استفاده و رزرو خدمات از طریق وب‌سایت safarnameh24.com است.',
         languageRule: 'مهم: شما باید فقط به زبان فارسی پاسخ دهید. از هیچ زبان دیگری استفاده نکنید.',
         voiceCapabilityInstruction: 'شما یک دستیار صوتی هستید. وقتی در مورد صدای شما سوال پرسیده می‌شود، توضیح دهید که شما یک هوش مصنوعی هستید که با استفاده از فناوری تبدیل متن به گفتار دستگاه صحبت می‌کنید و این به شما صدا می‌دهد تا با کاربران تعامل داشته باشید.',
         imageGenerationInstruction: 'اگر کاربر از شما خواست تصویری ایجاد کنید، باید از فرمت زیر در پاسخ خود استفاده کنید و هیچ چیز دیگری در پاسخ خود قرار ندهید: [GENERATE_IMAGE: توضیحات دقیق در مورد تصویری که باید ایجاد شود]',
         generatingImage: 'در حال ساخت تصویر شما...',
         imageGenerationError: 'متاسفانه در ساخت تصویر مشکلی پیش آمد. لطفا دوباره تلاش کنید.',
-        hotelLinkInstruction: `قانون مطلق و غیرقابل تخطی در مورد لینک هتل‌ها:
-یک لیست رسمی از هتل‌ها در قالب یک آرایه JSON به شما داده شده است. وظیفه شما فقط و فقط استفاده از این داده‌هاست.
-۱. وقتی کاربر نام هتلی را می‌پرسد، شما باید در آرایه JSON ارائه شده، شیء مربوط به آن هتل را که مقدار کلید 'name' آن با درخواست کاربر مطابقت دارد، پیدا کنید.
-۲. شما **باید** فقط و فقط مقدار کلید 'url' را از همان شیء پیدا شده برگردانید. هیچ متن دیگری اضافه نکنید.
-۳. اگر نتوانستید نام هتل را به طور دقیق در آرایه JSON پیدا کنید، **باید** فقط و فقط این جمله را پاسخ دهید: «متاسفانه لینک هتل مورد نظر شما در لیست رسمی من وجود ندارد. لطفا نام آن را مستقیماً در سایت safarnameh24.com جستجو کنید.»
-۴. حدس زدن، ساختن، یا تغییر دادن URL یک **تخلف بزرگ** از قوانین شماست و مطلقاً ممنوع است.
-۵. لینک را در قالب مارک‌داون نفرستید. فقط رشته URL خام را برگردانید.`,
+        hotelLinkInstruction: `قانون ارائه اطلاعات هتل:
+۱. شما یک لیست رسمی از هتل‌های همکار سفرنامه ۲۴ در قالب آرایه JSON در اختیار دارید. وقتی کاربر نام هتلی را می‌پرسد، ابتدا این لیست را برای یافتن نام دقیق هتل بررسی کنید.
+۲. اگر نام هتل در لیست JSON پیدا شد، شما باید فقط مقدار 'url' از همان آبجکت را ارائه دهید. هیچ متن اضافه‌ای ننویسید یا آن را قالب‌بندی نکنید.
+۳. اگر هتل در لیست JSON نبود، در آن صورت باید از ابزارهای دیگر خود (مانند نقشه گوگل) برای ارائه اطلاعات کلی و مفید در مورد آن هتل استفاده کنید. در این حالت، به وضوح بیان کنید که لینک رزرو مستقیم برای این هتل در سفرنامه ۲۴ موجود نیست.
+۴. از حدس زدن یا ساختن URL خودداری کنید. اولویت همیشه با لیست رسمی JSON برای لینک‌های رزرو است.`,
         hotelLinkListHeader: 'این لیست رسمی هتل‌ها در قالب یک آرایه JSON است. شما باید از این داده‌ها برای یافتن لینک هتل استفاده کنید:',
     }
 };
+
+export const changelog: ChangelogEntry[] = [
+    {
+        version: '1.1.0',
+        date: { en: 'July 28, 2024', fa: '۷ مرداد ۱۴۰۳' },
+        changes: {
+            en: [
+                'Added a "What\'s New" section to keep you updated on the latest features.',
+                'Message bubbles are now fully rounded for a cleaner, more modern look.',
+                'Implemented a notification system for new updates.'
+            ],
+            fa: [
+                'بخش «چه خبر؟» برای اطلاع‌رسانی در مورد آخرین ویژگی‌ها اضافه شد.',
+                'کادر پیام‌ها برای ظاهری تمیزتر و مدرن‌تر، اکنون کاملاً گِرد هستند.',
+                'سیستم اعلان برای به‌روزرسانی‌های جدید پیاده‌سازی شد.'
+            ]
+        }
+    },
+    {
+        version: '1.0.0',
+        date: { en: 'July 25, 2024', fa: '۴ مرداد ۱۴۰۳' },
+        changes: {
+            en: [
+                'Initial release of the Safarnameh24 AI Chatbot.',
+                'Core features include chat history, voice input, and settings customization.'
+            ],
+            fa: [
+                'نسخه اولیه چت بات هوشمند سفرنامه ۲۴ منتشر شد.',
+                'ویژگی‌های اصلی شامل تاریخچه گفتگو، ورودی صوتی و تنظیمات شخصی‌سازی است.'
+            ]
+        }
+    }
+];

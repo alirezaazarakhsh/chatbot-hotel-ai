@@ -1,6 +1,10 @@
 
 export interface HotelLink { name: string; url: string; }
-export interface Message { id: string; sender: 'user' | 'bot'; text: string; audioUrl?: string; imageUrl?: string; isSpeaking?: boolean; timestamp?: string; isCancelled?: boolean; feedback?: 'like' | 'dislike' | null; }
+export interface GroundingChunk {
+    web?: { uri: string; title: string; };
+    maps?: { uri: string; title: string; };
+}
+export interface Message { id: string; sender: 'user' | 'bot'; text: string; audioUrl?: string; imageUrl?: string; isSpeaking?: boolean; timestamp?: string; isCancelled?: boolean; feedback?: 'like' | 'dislike' | null; groundingChunks?: GroundingChunk[]; }
 export interface Conversation { id: string; title: string; messages: Message[]; lastUpdated: number; }
 export interface FAQ { id: number; question: string; answer: string; }
 export interface BotSettings {

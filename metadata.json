@@ -2,6 +2,7 @@
   "name": "چت بات هوشمند سفرنامه ۲۴",
   "description": "چت بات هوشمند سفرنامه ۲۴ برای مشاوره قبل از خرید و انتخاب بهترین گزینه های سفر.",
   "requestFramePermissions": [
-    "microphone"
+    "microphone",
+    "geolocation"
   ]
 }

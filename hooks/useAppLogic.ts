@@ -1,11 +1,18 @@
 
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenAI, Modality } from '@google/genai';
+import { GoogleGenAI, Modality, Part } from '@google/genai';
 import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 import { apiService } from '../api/apiService';
 import { translations } from '../i18n/translations';
+
+// Helper to convert data URL to a Gemini Part
+const dataUrlToInlineData = (dataUrl: string): Part | null => {
+    const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
+    if (!match) return null;
+    return { inlineData: { mimeType: match[1], data: match[2] } };
+}
 
 export const useAppLogic = (language: Language) => {
     const t = useCallback((key: keyof typeof translations.en) => translations[language][key] || key, [language]);
@@ -131,13 +138,14 @@ export const useAppLogic = (language: Language) => {
     }, [activeChatId, setConversations, t]);
 
     const handleSendMessage = useCallback(async (
-        input: { text?: string; image?: { base64: string; mimeType: string }; audio?: { data: string; mimeType: string; url: string } },
+        input: { text?: string; image?: { base64: string; mimeType: string; dataUrl: string } },
         callbacks: {
             isBotVoiceEnabled: boolean; botVoice: BotVoice; faqs: FAQ[];
             initAudioContext: () => void; queueAndPlayTTS: (text: string, messageId: string) => Promise<void>;
+            isMapEnabled: boolean; userLocation: { lat: number, lng: number } | null;
         }
     ) => {
-        if (isLoading || (!input.text?.trim() && !input.image && !input.audio)) return;
+        if (isLoading || (!input.text?.trim() && !input.image)) return;
         callbacks.initAudioContext();
         abortController.current = new AbortController();
         setIsLoading(true);
@@ -147,8 +155,7 @@ export const useAppLogic = (language: Language) => {
 
         const userMessage: Message = {
             id: `msg_${Date.now()}_user`, sender: 'user', text: input.text || '',
-            imageUrl: input.image ? `data:${input.image.mimeType};base64,${input.image.base64}` : undefined,
-            audioUrl: input.audio?.url,
+            imageUrl: input.image?.dataUrl,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
@@ -162,17 +169,51 @@ export const useAppLogic = (language: Language) => {
         setConversations(prev => prev.map(c => c.id === activeChatId ? updatedConversation : c));
 
         try {
-            const history = conversation.messages.map(m => ({ role: m.sender, content: m.text }));
-            const payload = {
-                message: input.text || '', 
-                audio_data: input.audio?.data, 
-                image_data: input.image?.base64, 
-                history,
-                system_instruction: botSettings.system_instruction, 
-                faqs: callbacks.faqs.map(f => ({ question: f.question, answer: f.answer })),
-            };
+            if (!process.env.API_KEY) throw new Error("API Key is not configured.");
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            
+            const history = conversation.messages.map(msg => {
+                const parts: Part[] = [];
+                if (msg.imageUrl) {
+                    const inlineDataPart = dataUrlToInlineData(msg.imageUrl);
+                    if (inlineDataPart) parts.push(inlineDataPart);
+                }
+                if (msg.text) parts.push({ text: msg.text });
+                return { role: msg.sender === 'user' ? 'user' : 'model', parts };
+            });
 
-            const botResponseText = await apiService.sendChatMessage(payload, abortController.current.signal);
+            const userParts: Part[] = [];
+            if (input.image) userParts.push({ inlineData: { mimeType: input.image.mimeType, data: input.image.base64 } });
+            if (input.text) userParts.push({ text: input.text });
+
+            const contents = [...history, { role: 'user', parts: userParts }];
+
+            const config: any = {};
+            if (callbacks.isMapEnabled) {
+                config.tools = [{ googleMaps: {} }];
+                if (callbacks.userLocation) {
+                    config.toolConfig = {
+                        retrievalConfig: {
+                            latLng: {
+                                latitude: callbacks.userLocation.lat,
+                                longitude: callbacks.userLocation.lng
+                            }
+                        }
+                    }
+                }
+            }
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents,
+                config: {
+                    ...config,
+                    systemInstruction: botSettings.system_instruction
+                }
+            });
+            
+            const botResponseText = response.text;
+            const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
             
             const imagePromptRegex = /\[GENERATE_IMAGE:\s*(.*?)\]/s;
             const imagePromptMatch = botResponseText.match(imagePromptRegex);
@@ -180,24 +221,20 @@ export const useAppLogic = (language: Language) => {
             if (imagePromptMatch && imagePromptMatch[1]) {
                 const imagePrompt = imagePromptMatch[1].trim();
                 const generatingText = botResponseText.replace(imagePromptRegex, t('generatingImage')).trim();
-                updateBotMessage(botMessage.id, { text: generatingText });
+                updateBotMessage(botMessage.id, { text: generatingText, groundingChunks });
 
                 let finalBotText = botResponseText.replace(imagePromptRegex, '').trim();
                 let imageUrl: string | undefined = undefined;
 
                 try {
-                    // Fix: Use process.env.API_KEY as per Gemini API guidelines.
-                    if (!process.env.API_KEY) throw new Error("API Key is not configured.");
-                    // Fix: Adhere to Gemini API guidelines by using process.env.API_KEY.
-                    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-                    const response = await ai.models.generateContent({
+                    const imageResponse = await ai.models.generateContent({
                         model: 'gemini-2.5-flash-image',
                         contents: { parts: [{ text: imagePrompt }] },
                         config: { responseModalities: [Modality.IMAGE] },
                     });
                     
                     let foundImage = false;
-                    for (const part of response.candidates?.[0]?.content?.parts || []) {
+                    for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
                         if (part.inlineData) {
                             imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
                             foundImage = true;
@@ -212,16 +249,15 @@ export const useAppLogic = (language: Language) => {
                     finalBotText = `${finalBotText}\n\n${t('imageGenerationError')}`.trim();
                 }
                 
-                updateBotMessage(botMessage.id, { text: finalBotText, isCancelled: false, imageUrl });
+                updateBotMessage(botMessage.id, { text: finalBotText, isCancelled: false, imageUrl, groundingChunks });
                 if (callbacks.isBotVoiceEnabled && finalBotText) {
                     updateBotMessage(botMessage.id, { isSpeaking: true });
                     await callbacks.queueAndPlayTTS(finalBotText, botMessage.id);
                 }
             } else {
-                updateBotMessage(botMessage.id, { text: botResponseText, isCancelled: false });
+                updateBotMessage(botMessage.id, { text: botResponseText, isCancelled: false, groundingChunks });
                 if (callbacks.isBotVoiceEnabled && botResponseText) {
                     updateBotMessage(botMessage.id, { isSpeaking: true });
-                    // Fix: Corrected typo in function call.
                     await callbacks.queueAndPlayTTS(botResponseText, botMessage.id);
                 }
             }

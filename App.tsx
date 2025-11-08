@@ -1,17 +1,18 @@
-
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { DEFAULT_FONT } from './constants';
-import { Language, Theme, BotVoice, FAQ, BotSettings } from './types';
-import { apiService } from './api/apiService';
+import { DEFAULT_FONT, API_BASE_URL } from './constants';
+import { Language, Theme, BotVoice } from './types';
 import { audioUtils } from './utils/audioUtils';
+import { apiService } from './api/apiService';
 import { Icons } from './components/Icons';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { SettingsModal } from './components/SettingsModal';
-import { FAQModal } from './components/FAQModal';
+import { FAQModal, UpdateModal } from './components/FAQModal';
 import { MessageRenderer } from './components/MessageRenderer';
+import { changelog } from './i18n/translations';
+
+const packageVersion = process.env.APP_VERSION;
 
 
 // --- MAIN APP COMPONENT ---
@@ -33,10 +34,13 @@ const App: React.FC = () => {
     const [isRecording, setIsRecording] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isFAQOpen, setIsFAQOpen] = useState(false);
+    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+    const [lastSeenVersion, setLastSeenVersion] = useLocalStorage('lastSeenVersion', '0.0.0');
     const [isBotVoiceEnabled, setIsBotVoiceEnabled] = useLocalStorage('isBotVoiceEnabled', true);
     const [botVoice, setBotVoice] = useLocalStorage<BotVoice>('botVoice', 'Kore');
     const [appFont, setAppFont] = useLocalStorage('appFont', DEFAULT_FONT);
     const [isMapEnabled, setIsMapEnabled] = useLocalStorage('isMapEnabled', true);
+    const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
     const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
     const [imageToSend, setImageToSend] = useState<{ dataUrl: string; base64: string; mimeType: string; } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -49,6 +53,8 @@ const App: React.FC = () => {
     const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
     const fileInputRef = useRef<HTMLInputElement>(null);
     
+    const hasNewUpdate = packageVersion !== lastSeenVersion;
+
     useEffect(() => { document.documentElement.style.setProperty('--app-font', `"${appFont}"`); }, [appFont]);
     useEffect(() => { endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [conversations, activeChatId, isLoading, userInput]);
     useEffect(() => {
@@ -60,6 +66,21 @@ const App: React.FC = () => {
         root.classList.remove('light', 'dark');
         root.classList.add(theme);
     }, [theme]);
+     useEffect(() => {
+        if (isMapEnabled) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setUserLocation({
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                    });
+                },
+                (error) => {
+                    console.error("Geolocation error:", error);
+                }
+            );
+        }
+    }, [isMapEnabled]);
     
     const initAudioContext = useCallback(() => {
         if (!audioContextRef.current) {
@@ -71,27 +92,41 @@ const App: React.FC = () => {
 
     const queueAndPlayTTS = useCallback(async (text: string, messageId: string) => {
         const ctx = audioContextRef.current;
-        if (!isBotVoiceEnabled || !text.trim() || !ctx) { updateBotMessage(messageId, { isSpeaking: false }); return; }
+        if (!isBotVoiceEnabled || !text.trim() || !ctx) {
+            updateBotMessage(messageId, { isSpeaking: false });
+            return;
+        }
         try {
-            const ttsResponse = await apiService.generateTTS(text, botVoice);
-            if (!ttsResponse?.audio_data) throw new Error("No audio data in response");
-            const audioBytes = audioUtils.decode(ttsResponse.audio_data);
-            const audioBuffer = await audioUtils.decodeAudioData(audioBytes, ctx);
+            const { audio_data } = await apiService.generateTTS(text, botVoice);
+            const decodedBytes = audioUtils.decode(audio_data);
+            const audioBuffer = await audioUtils.decodeAudioData(decodedBytes, ctx);
+            
             const source = ctx.createBufferSource();
             source.buffer = audioBuffer;
             source.connect(ctx.destination);
-            source.onended = () => { audioSourcesRef.current.delete(source); if (audioSourcesRef.current.size === 0) nextStartTimeRef.current = 0; updateBotMessage(messageId, { isSpeaking: false }); };
+            
+            source.onended = () => {
+                audioSourcesRef.current.delete(source);
+                if (audioSourcesRef.current.size === 0) {
+                    nextStartTimeRef.current = 0;
+                }
+                updateBotMessage(messageId, { isSpeaking: false });
+            };
+            
             const startTime = Math.max(ctx.currentTime, nextStartTimeRef.current);
             source.start(startTime);
             nextStartTimeRef.current = startTime + audioBuffer.duration;
             audioSourcesRef.current.add(source);
-        } catch (error) { console.error("TTS error:", error); updateBotMessage(messageId, { isSpeaking: false }); }
+        } catch (error) {
+            console.error("TTS error:", error);
+            updateBotMessage(messageId, { isSpeaking: false });
+        }
     }, [isBotVoiceEnabled, botVoice, updateBotMessage]);
     
     const onSendMessage = () => {
         handleSendMessage(
             { text: userInput, image: imageToSend },
-            { isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS }
+            { isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS, isMapEnabled, userLocation }
         );
         setUserInput('');
         setImageToSend(null);
@@ -107,19 +142,15 @@ const App: React.FC = () => {
             audioChunksRef.current = [];
             recorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data) };
             recorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    const [meta, base64] = (reader.result as string).split(',');
-                    if (base64) handleSendMessage({ audio: { data: base64, mimeType: 'audio/webm', url: reader.result as string } }, { isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS });
-                };
-                reader.readAsDataURL(audioBlob);
+                // NOTE: Audio-to-text functionality is temporarily disabled in favor of the new
+                // client-side multimodal and grounding features.
+                // A future update could re-enable this with a client-side transcription solution.
                 stream.getTracks().forEach(track => track.stop());
             };
             recorder.start();
             setIsRecording(true);
         } catch (err) { console.error("Mic error:", err); alert(t('micAccessDenied')); }
-    }, [isRecording, handleSendMessage, isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS, t]);
+    }, [isRecording, initAudioContext, t]);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -138,6 +169,11 @@ const App: React.FC = () => {
         navigator.clipboard.writeText(text);
         setCopiedMessageId(messageId);
         setTimeout(() => setCopiedMessageId(null), 2000);
+    };
+    
+    const handleOpenUpdateModal = () => {
+        setIsUpdateModalOpen(true);
+        setLastSeenVersion(packageVersion);
     };
 
     if (!isAppReady) return <LoadingSpinner />;
@@ -184,8 +220,15 @@ const App: React.FC = () => {
                     </div>
                 </div>
                  <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-2">
-                    <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-center w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Settings /><span className="ms-2">{t('settings')}</span></button>
-                    <button onClick={() => setIsFAQOpen(true)} className="flex items-center justify-center w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.FAQ /><span className="ms-2">{t('faq')}</span></button>
+                    <div className="relative">
+                       <button onClick={handleOpenUpdateModal} className="flex items-center justify-start w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700">
+                           <Icons.Gift />
+                           <span className="ms-2">{t('whatsNew')}</span>
+                       </button>
+                       {hasNewUpdate && <div className={`absolute top-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-neutral-50 dark:border-neutral-900 ${language === 'fa' ? 'right-4' : 'left-4'}`}></div>}
+                    </div>
+                    <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-start w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Settings /><span className="ms-2">{t('settings')}</span></button>
+                    <button onClick={() => setIsFAQOpen(true)} className="flex items-center justify-start w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.FAQ /><span className="ms-2">{t('faq')}</span></button>
                 </div>
             </aside>
 
@@ -215,8 +258,8 @@ const App: React.FC = () => {
                                             <img src={botSettings.logo_url} alt="Bot" className="w-6 h-6 object-contain p-0.5" />
                                         </div>
                                     )}
-                                    <div className={`max-w-[85%] md:max-w-2xl p-3 sm:p-4 rounded-2xl ${msg.sender === 'user' ? 'bg-[#F30F26] text-white' : 'bg-white dark:bg-neutral-700 rounded-tl-none'}`}>
-                                       <MessageRenderer message={msg} isLoading={isLoading} isLastMessage={index === activeConversation.messages.length - 1} isMapEnabled={isMapEnabled} onCopy={handleCopy} copiedMessageId={copiedMessageId} onFeedback={handleFeedback} t={t} />
+                                    <div className={`max-w-[85%] md:max-w-2xl p-3 sm:p-4 rounded-2xl ${msg.sender === 'user' ? 'bg-[#F30F26] text-white' : 'bg-white dark:bg-neutral-700'}`}>
+                                       <MessageRenderer message={msg} isLoading={isLoading} isLastMessage={index === activeConversation.messages.length - 1} isMapEnabled={isMapEnabled} onCopy={handleCopy} copiedMessageId={copiedMessageId} onFeedback={handleFeedback} t={t} language={language} />
                                     </div>
                                 </div>
                             ))}
@@ -253,6 +296,7 @@ const App: React.FC = () => {
             </main>
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} isBotVoiceEnabled={isBotVoiceEnabled} setIsBotVoiceEnabled={setIsBotVoiceEnabled} botVoice={botVoice} setBotVoice={setBotVoice} appFont={appFont} setAppFont={setAppFont} isMapEnabled={isMapEnabled} setIsMapEnabled={setIsMapEnabled} language={language} setLanguage={setLanguage} theme={theme} setTheme={setTheme} t={t} />
             <FAQModal isOpen={isFAQOpen} onClose={() => setIsFAQOpen(false)} faqs={faqs} t={t}/>
+            <UpdateModal isOpen={isUpdateModalOpen} onClose={() => setIsUpdateModalOpen(false)} changelog={changelog} language={language} t={t} />
         </div>
     );
 };

@@ -1,14 +1,24 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Message } from '../types';
+import { Message, Language } from '../types';
 import { translations } from '../i18n/translations';
 import { CustomAudioPlayer } from './CustomAudioPlayer';
 import { MapPreview } from './MapPreview';
 import { Icons } from './Icons';
 
-export const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; isLastMessage: boolean; isMapEnabled: boolean; onCopy: (text: string, id: string) => void; copiedMessageId: string | null; onFeedback: (messageId: string, feedback: 'like' | 'dislike') => void; t: (key: keyof typeof translations.en) => string; }> = ({ message, isLoading, isLastMessage, isMapEnabled, onCopy, copiedMessageId, onFeedback, t }) => {
-    const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl, isCancelled, feedback } = message;
+export const MessageRenderer: React.FC<{
+    message: Message;
+    isLoading: boolean;
+    isLastMessage: boolean;
+    isMapEnabled: boolean;
+    onCopy: (text: string, id: string) => void;
+    copiedMessageId: string | null;
+    onFeedback: (messageId: string, feedback: 'like' | 'dislike') => void;
+    t: (key: keyof typeof translations.en) => string;
+    language: Language;
+}> = ({ message, isLoading, isLastMessage, isMapEnabled, onCopy, copiedMessageId, onFeedback, t, language }) => {
+    const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl, isCancelled, feedback, groundingChunks } = message;
     const [displayedText, setDisplayedText] = useState('');
     const [location, setLocation] = useState<string | null>(null);
     const animationFrameRef = useRef<number | null>(null);
@@ -82,27 +92,51 @@ export const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; i
              {audioUrl && <CustomAudioPlayer audioUrl={audioUrl} timestamp={timestamp || ''} sender={sender}/>}
              {isSpeaking && <div className="flex items-center space-x-2 rtl:space-x-reverse"><Icons.Speaking /></div>}
              {text && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(displayedText)}</p>{isMapEnabled && location && <MapPreview location={location} t={t} />}</div>)}
+             
+             {groundingChunks && groundingChunks.length > 0 && (
+                 <div className="mt-3 pt-2 border-t border-neutral-200 dark:border-neutral-700/60">
+                     <h4 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 mb-1.5">{t('sources')}</h4>
+                     <ul className="text-xs space-y-1">
+                         {groundingChunks.map((chunk, index) => {
+                             const source = chunk.web || chunk.maps;
+                             if (!source || !source.uri) return null;
+                             return (
+                                 <li key={index} className="flex items-start">
+                                     <span className="me-2 text-neutral-400">&#8226;</span>
+                                     <a href={source.uri} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:underline break-all">
+                                         {source.title || source.uri}
+                                     </a>
+                                 </li>
+                             );
+                         })}
+                     </ul>
+                 </div>
+             )}
+
              {sender === 'bot' && text && !isSpeaking && !isLoading && (
-                <div className="flex items-center justify-end gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => onCopy(text, id)} className="p-1 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400" title={copiedMessageId === id ? t('copied') : t('copy')}>
-                        {copiedMessageId === id ? <Icons.Check /> : <Icons.Copy />}
-                    </button>
-                    <button
-                        onClick={() => onFeedback(id, 'like')}
-                        className={`p-1 rounded-md hover:bg-green-500/20 ${feedback === 'like' ? 'text-green-500' : 'text-neutral-500 dark:text-neutral-400 hover:text-green-500'}`}
-                        aria-label={t('likeResponse')}
-                        title={t('likeResponse')}
-                    >
-                        <Icons.ThumbsUp />
-                    </button>
-                    <button
-                        onClick={() => onFeedback(id, 'dislike')}
-                        className={`p-1 rounded-md hover:bg-red-500/20 ${feedback === 'dislike' ? 'text-red-500' : 'text-neutral-500 dark:text-neutral-400 hover:text-red-500'}`}
-                        aria-label={t('dislikeResponse')}
-                        title={t('dislikeResponse')}
-                    >
-                        <Icons.ThumbsDown />
-                    </button>
+                <div className={`flex items-center mt-2 opacity-0 group-hover:opacity-100 transition-opacity ${language === 'fa' ? 'justify-end' : 'justify-start'}`}>
+                    <div className="flex items-center gap-0.5 p-1 rounded-full bg-white dark:bg-neutral-800/80 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700/60 shadow-sm">
+                        <button onClick={() => onCopy(text, id)} className="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400 transition-colors" title={copiedMessageId === id ? t('copied') : t('copy')}>
+                            {copiedMessageId === id ? <Icons.Check /> : <Icons.Copy />}
+                        </button>
+                        <div className="w-px h-4 bg-neutral-200 dark:bg-neutral-700"></div>
+                        <button
+                            onClick={() => onFeedback(id, 'like')}
+                            className={`p-1.5 rounded-full transition-colors ${feedback === 'like' ? 'text-green-500 bg-green-500/10' : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-green-500'}`}
+                            aria-label={t('likeResponse')}
+                            title={t('likeResponse')}
+                        >
+                            <Icons.ThumbsUp />
+                        </button>
+                        <button
+                            onClick={() => onFeedback(id, 'dislike')}
+                            className={`p-1.5 rounded-full transition-colors ${feedback === 'dislike' ? 'text-red-500 bg-red-500/10' : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-red-500'}`}
+                            aria-label={t('dislikeResponse')}
+                            title={t('dislikeResponse')}
+                        >
+                            <Icons.ThumbsDown />
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
