@@ -5,7 +5,7 @@ import { HotelLink, FAQ, BotVoice, BotSettings } from '../types';
 export const apiService = {
     fetchBotSettings: async (): Promise<Partial<BotSettings>> => {
         try {
-            // Corrected URL: Use the consistent API_BASE_URL for all chatbot-related fetches.
+            // Use the consistent API_BASE_URL for chatbot settings.
             const settingsResponse = await fetch(`${API_BASE_URL}/settings/`);
             let settings: Partial<BotSettings> = {};
             if (settingsResponse.ok) {
@@ -14,8 +14,8 @@ export const apiService = {
                 console.error(`Failed to fetch bot settings. Status: ${settingsResponse.status}.`);
             }
 
-            // Corrected URL: Assume hotel links are also served from the main chatbot API.
-            const hotelLinksResponse = await fetch(`${API_BASE_URL}/hotel-links/`);
+            // Fetch hotel links from the specific hotel API endpoint.
+            const hotelLinksResponse = await fetch(`/api/v1/hotel/hotels/chatbot/`);
             let hotelLinks: HotelLink[] = [];
             if (hotelLinksResponse.ok) {
                 hotelLinks = await hotelLinksResponse.json();
@@ -31,7 +31,7 @@ export const apiService = {
     },
     fetchFAQs: async (): Promise<FAQ[]> => {
         try {
-            // Corrected URL: Use the consistent API_BASE_URL.
+            // Use the consistent API_BASE_URL for FAQs.
             const response = await fetch(`${API_BASE_URL}/faqs/`);
             if (!response.ok) {
                 console.error(`Failed to fetch FAQs. Status: ${response.status}.`);
