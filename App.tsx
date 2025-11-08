@@ -25,7 +25,7 @@ const App: React.FC = () => {
     const {
         isAppReady, conversations, activeChatId, setActiveChatId, isLoading, faqs,
         botSettings, startNewChat, handleSendMessage, handleDeleteConversation, handleStopGenerating,
-        updateBotMessage, t
+        updateBotMessage, t, handleFeedback
     } = useAppLogic(language);
     
     const [userInput, setUserInput] = useState('');
@@ -216,7 +216,7 @@ const App: React.FC = () => {
                                         </div>
                                     )}
                                     <div className={`max-w-[85%] md:max-w-2xl p-3 sm:p-4 rounded-2xl ${msg.sender === 'user' ? 'bg-[#F30F26] text-white' : 'bg-white dark:bg-neutral-700 rounded-tl-none'}`}>
-                                       <MessageRenderer message={msg} isLoading={isLoading} isLastMessage={index === activeConversation.messages.length - 1} isMapEnabled={isMapEnabled} onCopy={handleCopy} copiedMessageId={copiedMessageId} t={t} />
+                                       <MessageRenderer message={msg} isLoading={isLoading} isLastMessage={index === activeConversation.messages.length - 1} isMapEnabled={isMapEnabled} onCopy={handleCopy} copiedMessageId={copiedMessageId} onFeedback={handleFeedback} t={t} />
                                     </div>
                                 </div>
                             ))}

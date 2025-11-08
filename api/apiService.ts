@@ -5,6 +5,7 @@ import { HotelLink, FAQ, BotVoice, BotSettings } from '../types';
 export const apiService = {
     fetchBotSettings: async (): Promise<Partial<BotSettings>> => {
         try {
+            // Corrected URL: Use the consistent API_BASE_URL for all chatbot-related fetches.
             const settingsResponse = await fetch(`${API_BASE_URL}/settings/`);
             let settings: Partial<BotSettings> = {};
             if (settingsResponse.ok) {
@@ -13,7 +14,8 @@ export const apiService = {
                 console.error(`Failed to fetch bot settings. Status: ${settingsResponse.status}.`);
             }
 
-            const hotelLinksResponse = await fetch(`/api/v1/hotel/hotels/chatbot/`);
+            // Corrected URL: Assume hotel links are also served from the main chatbot API.
+            const hotelLinksResponse = await fetch(`${API_BASE_URL}/hotel-links/`);
             let hotelLinks: HotelLink[] = [];
             if (hotelLinksResponse.ok) {
                 hotelLinks = await hotelLinksResponse.json();
@@ -29,6 +31,7 @@ export const apiService = {
     },
     fetchFAQs: async (): Promise<FAQ[]> => {
         try {
+            // Corrected URL: Use the consistent API_BASE_URL.
             const response = await fetch(`${API_BASE_URL}/faqs/`);
             if (!response.ok) {
                 console.error(`Failed to fetch FAQs. Status: ${response.status}.`);
@@ -41,6 +44,7 @@ export const apiService = {
         }
     },
     sendChatMessage: async (payload: any, signal: AbortSignal): Promise<string> => {
+        // This URL is correct and remains unchanged.
         const response = await fetch(`${API_BASE_URL}/message/`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload), signal
@@ -53,6 +57,7 @@ export const apiService = {
         return responseData.response;
     },
     generateTTS: async (text: string, voice: BotVoice): Promise<{ audio_data: string }> => {
+        // This URL is correct and remains unchanged.
         const response = await fetch(`${API_BASE_URL}/tts/`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text, voice_name: voice })

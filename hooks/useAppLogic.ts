@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language } from '../types';
@@ -32,10 +33,12 @@ export const useAppLogic = (language: Language) => {
                 const botPersona = t('botPersona');
                 const languageRule = t('languageRule');
                 const imageGenerationInstruction = t('imageGenerationInstruction');
+                const voiceCapabilityInstruction = t('voiceCapabilityInstruction');
                 
                 const systemInstruction = [
                     botPersona,
                     languageRule,
+                    voiceCapabilityInstruction,
                     settings.system_instruction || '',
                     imageGenerationInstruction
                 ].filter(Boolean).join('\n\n');
@@ -222,9 +225,27 @@ export const useAppLogic = (language: Language) => {
         }
     }, [activeChatId, conversations, isLoading, botSettings.system_instruction, setConversations, updateBotMessage, t]);
 
+    const handleFeedback = useCallback((messageId: string, feedback: 'like' | 'dislike') => {
+        setConversations(prev => prev.map(c => {
+            if (c.id === activeChatId) {
+                return {
+                    ...c,
+                    messages: c.messages.map(m => {
+                        if (m.id === messageId) {
+                            const newFeedback = m.feedback === feedback ? null : feedback;
+                            return { ...m, feedback: newFeedback };
+                        }
+                        return m;
+                    })
+                };
+            }
+            return c;
+        }));
+    }, [activeChatId, setConversations]);
+
     return {
         isAppReady, conversations, activeChatId, setActiveChatId, isLoading, faqs,
         botSettings, startNewChat, handleSendMessage, handleDeleteConversation, handleStopGenerating,
-        updateBotMessage, t
+        updateBotMessage, t, handleFeedback
     };
 };

@@ -7,8 +7,8 @@ import { CustomAudioPlayer } from './CustomAudioPlayer';
 import { MapPreview } from './MapPreview';
 import { Icons } from './Icons';
 
-export const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; isLastMessage: boolean; isMapEnabled: boolean; onCopy: (text: string, id: string) => void; copiedMessageId: string | null; t: (key: keyof typeof translations.en) => string; }> = ({ message, isLoading, isLastMessage, isMapEnabled, onCopy, copiedMessageId, t }) => {
-    const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl, isCancelled } = message;
+export const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; isLastMessage: boolean; isMapEnabled: boolean; onCopy: (text: string, id: string) => void; copiedMessageId: string | null; onFeedback: (messageId: string, feedback: 'like' | 'dislike') => void; t: (key: keyof typeof translations.en) => string; }> = ({ message, isLoading, isLastMessage, isMapEnabled, onCopy, copiedMessageId, onFeedback, t }) => {
+    const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl, isCancelled, feedback } = message;
     const [displayedText, setDisplayedText] = useState('');
     const [location, setLocation] = useState<string | null>(null);
     const animationFrameRef = useRef<number | null>(null);
@@ -82,9 +82,29 @@ export const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; i
              {audioUrl && <CustomAudioPlayer audioUrl={audioUrl} timestamp={timestamp || ''} sender={sender}/>}
              {isSpeaking && <div className="flex items-center space-x-2 rtl:space-x-reverse"><Icons.Speaking /></div>}
              {text && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(displayedText)}</p>{isMapEnabled && location && <MapPreview location={location} t={t} />}</div>)}
-             {sender === 'bot' && text && !isSpeaking && !isLoading && (<div className={`absolute top-1 opacity-0 group-hover:opacity-100 transition-opacity ${document.documentElement.dir === 'rtl' ? '-left-8' : '-right-8'}`}>
-                <button onClick={() => onCopy(text, id)} className="p-1.5 rounded-md hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-500">{copiedMessageId === id ? <Icons.Check /> : <Icons.Copy />}</button>
-             </div>)}
+             {sender === 'bot' && text && !isSpeaking && !isLoading && (
+                <div className={`absolute top-1 flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${document.documentElement.dir === 'rtl' ? '-left-9' : '-right-9'}`}>
+                    <button onClick={() => onCopy(text, id)} className="p-1.5 rounded-md hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-500" title={copiedMessageId === id ? t('copied') : t('copy')}>
+                        {copiedMessageId === id ? <Icons.Check /> : <Icons.Copy />}
+                    </button>
+                    <button
+                        onClick={() => onFeedback(id, 'like')}
+                        className={`p-1.5 rounded-md hover:bg-green-500/20 ${feedback === 'like' ? 'text-green-500' : 'text-neutral-500 hover:text-green-500'}`}
+                        aria-label={t('likeResponse')}
+                        title={t('likeResponse')}
+                    >
+                        <Icons.ThumbsUp />
+                    </button>
+                    <button
+                        onClick={() => onFeedback(id, 'dislike')}
+                        className={`p-1.5 rounded-md hover:bg-red-500/20 ${feedback === 'dislike' ? 'text-red-500' : 'text-neutral-500 hover:text-red-500'}`}
+                        aria-label={t('dislikeResponse')}
+                        title={t('dislikeResponse')}
+                    >
+                        <Icons.ThumbsDown />
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
