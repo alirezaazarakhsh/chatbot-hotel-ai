@@ -23,12 +23,12 @@ export const translations = {
         imageGenerationInstruction: 'When asked to create an image, you MUST respond with ONLY the following special format, and no other text or explanation: [GENERATE_IMAGE: A detailed description of the image to create]',
         generatingImage: 'Creating your image, please wait a moment...',
         imageGenerationError: 'Sorry, there was an error creating the image. Please try another prompt.',
-        hotelLinkInstruction: `CRITICAL RULE: You are provided with an official list of hotels from safarnameh24.com. When a user asks for a hotel link, you MUST adhere to the following rules without exception:
-1.  Check your list for the hotel. If it exists, provide the corresponding URL from the list.
-2.  If the hotel is NOT in your list, you MUST state that you do not have the link for that specific hotel and recommend that the user search for it on the safarnameh24.com website.
-3.  You are ABSOLUTELY FORBIDDEN from providing links from any other source (like a hotel's official website, other booking agencies, or search results).
-4.  DO NOT create your own search links.
-5.  When providing a URL, you MUST output the raw URL text ONLY. Do not use any extra formatting, brackets, parentheses, or markdown (e.g., [link text](url)).`,
+        hotelLinkInstruction: `ABSOLUTE and UNBREAKABLE RULE regarding hotel links:
+You are provided with an official list of hotels and their links. Your only job is to extract information from this list.
+1. If a user asks for a hotel that is in your list, you MUST copy the exact, full URL from the list and provide it as the response. Example: https://www.safarnameh24.com/best-hotels/espinaspalace
+2. If the hotel is NOT in your list, you MUST respond with only this exact sentence: "Unfortunately, the link for that hotel is not in my official list. Please search for it directly on safarnameh24.com."
+3. Guessing, creating, or searching for any other link is a major violation of your rules and is absolutely forbidden.
+4. Do not, under any circumstances, format the links with markdown, brackets, or parentheses. Provide the raw URL only.`,
         hotelLinkListHeader: 'Here is the official list of hotels and their links you MUST use:',
     },
     fa: {
@@ -52,12 +52,12 @@ export const translations = {
         imageGenerationInstruction: 'اگر کاربر از شما خواست تصویری ایجاد کنید، باید از فرمت زیر در پاسخ خود استفاده کنید و هیچ چیز دیگری در پاسخ خود قرار ندهید: [GENERATE_IMAGE: توضیحات دقیق در مورد تصویری که باید ایجاد شود]',
         generatingImage: 'در حال ساخت تصویر شما...',
         imageGenerationError: 'متاسفانه در ساخت تصویر مشکلی پیش آمد. لطفا دوباره تلاش کنید.',
-        hotelLinkInstruction: `قانون بسیار مهم: شما لیستی رسمی از هتل‌ها و لینک‌های آن‌ها از سایت safarnameh24.com در اختیار دارید. زمانی که کاربر درخواست لینک هتل می‌کند، باید بدون استثنا از قوانین زیر پیروی کنید:
-۱. لیست خود را برای هتل مورد نظر بررسی کنید. اگر وجود داشت، URL مربوطه را از لیست ارائه دهید.
-۲. اگر هتل در لیست شما نبود، باید اعلام کنید که لینک آن هتل خاص را در اختیار ندارید و به کاربر پیشنهاد دهید آن را در وب‌سایت safarnameh24.com جستجو کند.
-۳. شما مطلقاً مجاز به ارائه لینک از هیچ منبع دیگری (مانند وب‌سایت رسمی خود هتل، سایر آژانس‌های رزرو، یا نتایج جستجو) نیستید.
-۴. لینک جستجو خودتان ایجاد نکنید.
-۵. هنگام ارائه URL، باید فقط متن خام URL را خروجی دهید. از هیچ‌گونه قالب‌ بندی اضافی، براکت، پرانتز، یا مارک‌داون (مثلاً [متن لینک](آدرس)) استفاده نکنید.`,
+        hotelLinkInstruction: `قانون مطلق و غیرقابل تخطی در مورد لینک هتل‌ها:
+شما یک لیست رسمی از هتل‌ها و لینک‌هایشان در اختیار دارید. وظیفه شما فقط و فقط استخراج اطلاعات از این لیست است.
+۱. اگر کاربر نام هتلی را پرسید که در لیست شما وجود دارد، شما **باید** و **حتماً** لینک دقیق و کامل آن را از لیست کپی کرده و به تنهایی در پاسخ قرار دهید. مثال: https://www.safarnameh24.com/best-hotels/espinaspalace
+۲. اگر هتل در لیست شما نبود، شما **باید** فقط و فقط این جمله را پاسخ دهید: «متاسفانه لینک هتل مورد نظر شما در لیست رسمی من وجود ندارد. لطفا نام آن را مستقیماً در سایت safarnameh24.com جستجو کنید.»
+۳. حدس زدن، ساختن، یا جستجوی هرگونه لینک دیگر یک **تخلف بزرگ** از قوانین شماست و مطلقاً ممنوع است.
+۴. به هیچ وجه لینک‌ها را در قالب مارک‌داون یا با براکت و پرانتز نفرستید. فقط URL خام.`,
         hotelLinkListHeader: 'این لیست رسمی هتل‌ها و لینک‌های آن‌هاست که باید از آن استفاده کنید:',
     }
 };

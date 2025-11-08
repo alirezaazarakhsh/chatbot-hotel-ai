@@ -1,4 +1,4 @@
-// Fix: Import React to make the React namespace available for type annotations.
+
 import React, { useState, useEffect } from 'react';
 
 export const useLocalStorage = <T,>(key: string, initialValue: T | (() => T)): [T, React.Dispatch<React.SetStateAction<T>>] => {
