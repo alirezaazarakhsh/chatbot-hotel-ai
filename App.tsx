@@ -53,6 +53,8 @@ const App: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     
     const hasNewUpdate = packageVersion !== lastSeenVersion;
+    const [showUpdatePulse, setShowUpdatePulse] = useState(hasNewUpdate);
+
 
     useEffect(() => { document.documentElement.style.setProperty('--app-font', `"${appFont}"`); }, [appFont]);
     useEffect(() => { endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [conversations, activeChatId, isLoading, userInput]);
@@ -184,7 +186,10 @@ const App: React.FC = () => {
     
     const handleOpenUpdateModal = () => {
         setIsUpdateModalOpen(true);
-        setLastSeenVersion(packageVersion);
+        if (hasNewUpdate) {
+            setLastSeenVersion(packageVersion);
+            setShowUpdatePulse(false);
+        }
     };
 
     if (!isAppReady) return <LoadingSpinner />;
@@ -233,10 +238,14 @@ const App: React.FC = () => {
                  <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-2">
                     <div className="relative">
                        <button onClick={handleOpenUpdateModal} className="flex items-center justify-start w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700">
-                           <Icons.Gift />
-                           <span className="ms-2">{t('whatsNew')}</span>
+                           <Icons.Bell />
+                           <span className="ms-2">{t('updates')}</span>
                        </button>
-                       {hasNewUpdate && <div className={`absolute top-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-neutral-50 dark:border-neutral-900 ${language === 'fa' ? 'right-4' : 'left-4'}`}></div>}
+                        {showUpdatePulse && (
+                           <div className={`absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-red-500 rounded-full ${language === 'fa' ? 'right-2' : 'left-2'}`}>
+                               <div className="absolute w-full h-full bg-red-500 rounded-full animate-pulse"></div>
+                           </div>
+                       )}
                     </div>
                     <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-start w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.Settings /><span className="ms-2">{t('settings')}</span></button>
                     <button onClick={() => setIsFAQOpen(true)} className="flex items-center justify-start w-full p-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"><Icons.FAQ /><span className="ms-2">{t('faq')}</span></button>

@@ -17,7 +17,7 @@ export const apiService = {
     },
     fetchHotelLinks: async (): Promise<HotelLink[]> => {
         try {
-            const response = await fetch(`/api/v1/hotels/chatbot/`);
+            const response = await fetch(`/api/v1/hotel/hotels/chatbot/`);
             if (!response.ok) {
                 console.error(`Failed to fetch hotel links. Status: ${response.status}.`);
                 return [];

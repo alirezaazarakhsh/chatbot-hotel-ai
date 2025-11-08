@@ -1,5 +1,6 @@
 
 
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, Modality, Part } from '@google/genai';
 import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language } from '../types';
@@ -206,15 +207,13 @@ export const useAppLogic = (language: Language) => {
             const contents = [...history, { role: 'user', parts: userParts }];
 
             const config: any = {};
-            if (callbacks.isMapEnabled) {
+            if (callbacks.isMapEnabled && callbacks.userLocation) {
                 config.tools = [{ googleMaps: {} }];
-                if (callbacks.userLocation) {
-                    config.toolConfig = {
-                        retrievalConfig: {
-                            latLng: {
-                                latitude: callbacks.userLocation.lat,
-                                longitude: callbacks.userLocation.lng
-                            }
+                config.toolConfig = {
+                    retrievalConfig: {
+                        latLng: {
+                            latitude: callbacks.userLocation.lat,
+                            longitude: callbacks.userLocation.lng
                         }
                     }
                 }
