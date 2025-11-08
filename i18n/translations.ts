@@ -40,7 +40,7 @@ export const translations = {
         languageRule: 'IMPORTANT: You must respond ONLY in English. Do not use any other language.',
         locationServicesInstruction: "IMPORTANT RULE for location questions: If a user asks a location-based question (e.g., 'restaurants near me') and you do not have access to their location (because the googleMaps tool is not provided in the request), you MUST NOT answer the question. Instead, you MUST politely inform the user that you need location access to answer and guide them to enable location services in their browser settings and then try again. Do not say you are an AI that cannot access location.",
         voiceCapabilityInstruction: "You are a voice-enabled assistant. When asked about your voice, explain that you are an AI that can speak using the device's text-to-speech technology, which gives you a voice to interact with users.",
-        imageGenerationInstruction: 'When asked to create an image, you MUST respond with ONLY the following special format, and no other text or explanation: [GENERATE_IMAGE: A detailed description of the image to create]',
+        imageGenerationInstruction: 'When asked to create an image, you MUST respond with ONLY the following special format, and no other text or explanation: [GENERATE_IMAGE: A detailed description of the image to create]. The description inside the tag MUST be in English for best results.',
         generatingImage: 'Creating your image, please wait a moment...',
         imageGenerationError: 'Sorry, there was an error creating the image. Please try another prompt.',
         hotelLinkInstruction: `RULE for providing hotel information:
@@ -49,11 +49,12 @@ export const translations = {
 3.  If the hotel is NOT in the JSON list, you should then use your other tools (like Google Maps) to provide general, helpful information about the hotel. In this case, state clearly that a direct booking link is not available on Safarnameh24 for this hotel.
 4.  Do not guess or create URLs. Prioritize the official JSON list for booking links.`,
         hotelLinkListHeader: 'Here is the official list of hotels as a JSON array. You MUST use this data to find the hotel URL:',
-        travelPackageInstruction: `RULE for providing travel package information:
-1.  You have an official list of Safarnameh24 travel packages in a JSON array. When a user asks about tours, trips, or travel packages, you MUST check this list.
-2.  If a user's query matches a destination or package name, present the details from the list: name, destination, duration, price, and the booking 'url'.
-3.  Encourage the user to book the package through the provided official link. Do not provide links from other websites.`,
-        travelPackageListHeader: 'Here is the official list of travel packages. You MUST use this data to answer questions about tours:',
+        travelPackageInstruction: `RULE for Travel and Tour questions:
+1. You are a general travel advisor. You DO NOT have a list of specific tour packages to sell.
+2. When a user asks about tours or trips (e.g., "what tours do you have?", "I want a trip to Kish"), you should provide general, helpful advice.
+3. This advice can include: suggestions for destinations, the best season to visit, recommended trip duration, and a list of essential items to pack.
+4. You MUST NOT provide any booking links, prices, or mention any specific website (including safarnameh24.com) for booking tours. Your role is purely advisory for tours.`,
+        travelPackageListHeader: '',
         noSearchResults: 'No results found',
         generateTitlePrompt: 'Generate a short, concise title (max 5 words) for the following conversation:',
     },
@@ -89,7 +90,7 @@ export const translations = {
         languageRule: 'مهم: شما باید فقط به زبان فارسی پاسخ دهید. از هیچ زبان دیگری استفاده نکنید.',
         locationServicesInstruction: 'قانون مهم برای سوالات مکانی: اگر کاربر سوالی مبتنی بر مکان پرسید (مانند «رستوران‌های نزدیک من») و شما به موقعیت مکانی او دسترسی نداشتید (چون ابزار googleMaps در درخواست ارائه نشده است)، شما نباید به سوال پاسخ دهید. در عوض، باید مودبانه به کاربر اطلاع دهید که برای پاسخ به این سوال به دسترسی موقعیت مکانی نیاز دارید و او را راهنمایی کنید تا خدمات موقعیت مکانی را در تنظیمات مرورگر خود فعال کرده و دوباره تلاش کند. نگویید که شما یک هوش مصنوعی هستید و به موقعیت مکانی دسترسی ندارید.',
         voiceCapabilityInstruction: 'شما یک دستیار صوتی هستید. وقتی در مورد صدای شما سوال پرسیده می‌شود، توضیح دهید که شما یک هوش مصنوعی هستید که با استفاده از فناوری تبدیل متن به گفتار دستگاه صحبت می‌کنید و این به شما صدا می‌دهد تا با کاربران تعامل داشته باشید.',
-        imageGenerationInstruction: 'اگر کاربر از شما خواست تصویری ایجاد کنید، باید از فرمت زیر در پاسخ خود استفاده کنید و هیچ چیز دیگری در پاسخ خود قرار ندهید: [GENERATE_IMAGE: توضیحات دقیق در مورد تصویری که باید ایجاد شود]',
+        imageGenerationInstruction: 'اگر کاربر از شما خواست تصویری ایجاد کنید، باید از فرمت زیر در پاسخ خود استفاده کنید و هیچ چیز دیگری در پاسخ خود قرار ندهید: [GENERATE_IMAGE: توضیحات دقیق در مورد تصویری که باید ایجاد شود]. توضیحات داخل این تگ برای بهترین نتیجه باید به زبان انگلیسی باشد.',
         generatingImage: 'در حال ساخت تصویر شما...',
         imageGenerationError: 'متاسفانه در ساخت تصویر مشکلی پیش آمد. لطفا دوباره تلاش کنید.',
         hotelLinkInstruction: `قانون ارائه اطلاعات هتل:
@@ -98,20 +99,39 @@ export const translations = {
 ۳. اگر هتل در لیست JSON نبود، در آن صورت باید از ابزارهای دیگر خود (مانند نقشه گوگل) برای ارائه اطلاعات کلی و مفید در مورد آن هتل استفاده کنید. در این حالت، به وضوح بیان کنید که لینک رزرو مستقیم برای این هتل در سفرنامه ۲۴ موجود نیست.
 ۴. از حدس زدن یا ساختن URL خودداری کنید. اولویت همیشه با لیست رسمی JSON برای لینک‌های رزرو است.`,
         hotelLinkListHeader: 'این لیست رسمی هتل‌ها در قالب یک آرایه JSON است. شما باید از این داده‌ها برای یافتن لینک هتل استفاده کنید:',
-        travelPackageInstruction: `قانون ارائه اطلاعات تورهای مسافرتی:
-۱. شما یک لیست رسمی از تورهای مسافرتی سفرنامه ۲۴ در قالب آرایه JSON در اختیار دارید. وقتی کاربر در مورد تور، سفر یا پکیج‌های مسافرتی سوال می‌پرسد، باید این لیست را بررسی کنید.
-۲. اگر درخواست کاربر با مقصد یا نام پکیجی مطابقت داشت، جزئیات را از لیست ارائه دهید: نام، مقصد، مدت زمان، قیمت و لینک رزرو 'url'.
-۳. کاربر را تشویق کنید تا تور را از طریق لینک رسمی ارائه شده رزرو کند. از ارائه لینک از وب‌سایت‌های دیگر خودداری کنید.`,
-        travelPackageListHeader: 'این لیست رسمی تورهای مسافرتی است. شما باید از این داده‌ها برای پاسخ به سوالات در مورد تورها استفاده کنید:',
+        travelPackageInstruction: `قانون برای سوالات مربوط به سفر و تور:
+۱. شما یک مشاور سفر عمومی هستید و لیست مشخصی از تورهای مسافرتی برای فروش ندارید.
+۲. وقتی کاربر در مورد تور یا سفر سوال می‌پرسد (مثلاً «چه تورهایی دارید؟» یا «می‌خواهم به کیش سفر کنم»)، شما باید راهنمایی‌های کلی و مفید ارائه دهید.
+۳. این راهنمایی‌ها می‌تواند شامل پیشنهاد مقصد، بهترین فصل برای سفر، مدت زمان پیشنهادی برای اقامت و لیستی از وسایل ضروری برای بسته‌بندی باشد.
+۴. شما نباید هیچ لینک رزرو، قیمت یا نام وب‌سایت خاصی (از جمله safarnameh24.com) را برای رزرو تور ارائه دهید. نقش شما برای تورها صرفاً مشاوره‌ای است.`,
+        travelPackageListHeader: '',
         noSearchResults: 'نتیجه‌ای یافت نشد',
         generateTitlePrompt: 'یک عنوان کوتاه و مختصر (حداکثر ۵ کلمه) برای گفتگوی زیر ایجاد کن:',
     }
 };
 
 export const changelog: ChangelogEntry[] = [
+    {
+        version: '1.5.0',
+        date: { en: 'November 9, 2025', fa: '۱۸ آبان ۱۴۰۴' },
+        changes: {
+            en: [
+                'Fixed the image generation feature using a more robust model.',
+                'Changed tour logic to act as a general travel advisor instead of providing a fixed list.',
+                'Added a stylish, custom scrollbar to all scrollable areas.',
+                'Improved the display of generated images with a subtle border.'
+            ],
+            fa: [
+                'قابلیت ساخت تصویر با استفاده از یک مدل قوی‌تر، اصلاح شد.',
+                'منطق تورها تغییر کرد تا ربات به عنوان یک مشاور سفر عمومی عمل کند.',
+                'یک اسکرول‌بار سفارشی و زیبا به تمام بخش‌های برنامه اضافه شد.',
+                'نمایش تصاویر ساخته شده با یک کادر نازک بهبود یافت.'
+            ]
+        }
+    },
      {
         version: '1.4.0',
-        date: { en: 'August 2, 2024', fa: '۱۲ مرداد ۱۴۰۳' },
+        date: { en: 'November 9, 2025', fa: '۱۸ آبان ۱۴۰۴' },
         changes: {
             en: [
                 'Added automatic conversation titling for easier chat history navigation.',
@@ -127,7 +147,7 @@ export const changelog: ChangelogEntry[] = [
     },
     {
         version: '1.3.0',
-        date: { en: 'August 1, 2024', fa: '۱۱ مرداد ۱۴۰۳' },
+        date: { en: 'November 9, 2025', fa: '۱۸ آبان ۱۴۰۴' },
         changes: {
             en: [
                 'Implemented real-time streaming responses for a faster, more interactive chat experience.',
@@ -143,7 +163,7 @@ export const changelog: ChangelogEntry[] = [
     },
     {
         version: '1.2.0',
-        date: { en: 'July 31, 2024', fa: '۱۰ مرداد ۱۴۰۳' },
+        date: { en: 'November 9, 2025', fa: '۱۸ آبان ۱۴۰۴' },
         changes: {
             en: [
                 'Major AI Upgrade: Now with image understanding and Google Maps integration for smarter, location-aware answers.',
@@ -159,7 +179,7 @@ export const changelog: ChangelogEntry[] = [
     },
     {
         version: '1.1.0',
-        date: { en: 'July 28, 2024', fa: '۷ مرداد ۱۴۰۳' },
+        date: { en: 'November 9, 2025', fa: '۱۸ آبان ۱۴۰۴' },
         changes: {
             en: [
                 'Added a "What\'s New" section to keep you updated on the latest features.',
@@ -175,7 +195,7 @@ export const changelog: ChangelogEntry[] = [
     },
     {
         version: '1.0.0',
-        date: { en: 'July 25, 2024', fa: '۴ مرداد ۱۴۰۳' },
+        date: { en: 'November 9, 2025', fa: '۱۸ آبان ۱۴۰۴' },
         changes: {
             en: [
                 'Initial release of the Safarnameh24 AI Chatbot.',

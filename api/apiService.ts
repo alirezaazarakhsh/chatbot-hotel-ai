@@ -1,5 +1,5 @@
 
-import { HotelLink, FAQ, BotVoice, BotSettings, TravelPackage } from '../types';
+import { HotelLink, FAQ, BotVoice, BotSettings } from '../types';
 
 export const apiService = {
     fetchBotSettings: async (): Promise<Partial<BotSettings>> => {
@@ -43,24 +43,6 @@ export const apiService = {
             return await response.json();
         } catch (error) {
             console.error('Error fetching FAQs:', error);
-            return [];
-        }
-    },
-    fetchTravelPackages: async (): Promise<TravelPackage[]> => {
-        try {
-            const response = await fetch(`/api/v1/chatbot/travel-packages/`);
-            if (!response.ok) {
-                console.error(`Failed to fetch travel packages. Status: ${response.status}.`);
-                return [];
-            }
-            const data = await response.json();
-            if (Array.isArray(data)) {
-                return data;
-            }
-            console.error('Travel packages API did not return an array:', data);
-            return [];
-        } catch (error) {
-            console.error('Error fetching travel packages:', error);
             return [];
         }
     },

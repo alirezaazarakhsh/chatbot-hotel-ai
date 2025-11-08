@@ -51,7 +51,11 @@ export const MessageRenderer: React.FC<{
     
     return (
         <div className="group">
-             {imageUrl && <img src={imageUrl} alt={t('imagePreview')} className="rounded-lg mb-2 max-w-full h-auto" />}
+             {imageUrl && (
+                <div className="mb-2 p-1 rounded-lg border-2 border-neutral-200 dark:border-neutral-700 inline-block bg-neutral-100 dark:bg-neutral-800">
+                    <img src={imageUrl} alt={t('imagePreview')} className="rounded-md max-w-full h-auto" />
+                </div>
+             )}
              {audioUrl && <CustomAudioPlayer audioUrl={audioUrl} timestamp={timestamp || ''} sender={sender}/>}
              {isSpeaking && <div className="flex items-center space-x-2 rtl:space-x-reverse"><Icons.Speaking /></div>}
              {text && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(text)}</p>{location && <MapPreview location={location} t={t} />}</div>)}

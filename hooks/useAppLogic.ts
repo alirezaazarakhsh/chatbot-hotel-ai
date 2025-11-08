@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, GenerateContentResponse, Part } from '@google/genai';
-import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language, TravelPackage } from '../types';
+import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 import { apiService } from '../api/apiService';
 import { translations } from '../i18n/translations';
@@ -21,7 +21,7 @@ export const useAppLogic = (language: Language) => {
     const [faqs, setFaqs] = useState<FAQ[]>([]);
     const [botSettings, setBotSettings] = useState<BotSettings>({
         system_instruction: '', default_voice: 'Kore', is_bot_voice_enabled: true,
-        available_fonts: [], hotel_links: [], travel_packages: [], welcome_title: '', welcome_message: '',
+        available_fonts: [], hotel_links: [], welcome_title: '', welcome_message: '',
         logo_url: 'http://cps.safarnameh24.com/media/images/logo/full-red-gray_mej9jEE.webp',
     });
     
@@ -30,14 +30,13 @@ export const useAppLogic = (language: Language) => {
     useEffect(() => {
         const initializeApp = async () => {
             try {
-                const [settingsData, faqsData, hotelLinksData, travelPackagesData] = await Promise.all([
+                const [settingsData, faqsData, hotelLinksData] = await Promise.all([
                     apiService.fetchBotSettings(),
                     apiService.fetchFAQs(),
                     apiService.fetchHotelLinks(),
-                    apiService.fetchTravelPackages()
                 ]);
 
-                const combinedSettings = { ...settingsData, hotel_links: hotelLinksData, travel_packages: travelPackagesData };
+                const combinedSettings = { ...settingsData, hotel_links: hotelLinksData };
 
                 const botPersona = t('botPersona');
                 const languageRule = t('languageRule');
@@ -50,10 +49,6 @@ export const useAppLogic = (language: Language) => {
                 const hotelLinksList = (combinedSettings.hotel_links && combinedSettings.hotel_links.length > 0)
                     ? `${t('hotelLinkListHeader')}\n${JSON.stringify(combinedSettings.hotel_links, null, 2)}`
                     : '';
-                
-                const travelPackagesList = (combinedSettings.travel_packages && combinedSettings.travel_packages.length > 0)
-                    ? `${t('travelPackageListHeader')}\n${JSON.stringify(combinedSettings.travel_packages, null, 2)}`
-                    : '';
 
                 const systemInstruction = [
                     botPersona,
@@ -65,7 +60,6 @@ export const useAppLogic = (language: Language) => {
                     hotelLinkInstruction,
                     hotelLinksList,
                     travelPackageInstruction,
-                    travelPackagesList
                 ].filter(Boolean).join('\n\n');
                 
                 setBotSettings(prev => ({ ...prev, ...combinedSettings, system_instruction: systemInstruction }));
