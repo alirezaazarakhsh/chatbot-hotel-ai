@@ -151,8 +151,12 @@ export const useAppLogic = (language: Language) => {
         try {
             const history = conversation.messages.map(m => ({ role: m.sender, content: m.text }));
             const payload = {
-                message: input.text, audio_data: input.audio?.data, image_data: input.image?.base64, history,
-                system_instruction: botSettings.system_instruction, hotel_links: callbacks.hotelLinks,
+                message: input.text || '', 
+                audio_data: input.audio?.data, 
+                image_data: input.image?.base64, 
+                history,
+                system_instruction: botSettings.system_instruction, 
+                hotel_links: callbacks.hotelLinks,
                 faqs: callbacks.faqs.map(f => ({ question: f.question, answer: f.answer })),
             };
 
