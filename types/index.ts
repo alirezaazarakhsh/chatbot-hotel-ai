@@ -1,8 +1,9 @@
 
 export interface HotelLink { name: string; url: string; }
+// Fix: Made uri and title optional to match the type from @google/genai, resolving assignment errors.
 export interface GroundingChunk {
-    web?: { uri: string; title: string; };
-    maps?: { uri: string; title: string; };
+    web?: { uri?: string; title?: string; };
+    maps?: { uri?: string; title?: string; };
 }
 export interface Message { id: string; sender: 'user' | 'bot'; text: string; audioUrl?: string; imageUrl?: string; isSpeaking?: boolean; timestamp?: string; isCancelled?: boolean; feedback?: 'like' | 'dislike' | null; groundingChunks?: GroundingChunk[]; }
 export interface Conversation { id: string; title: string; messages: Message[]; lastUpdated: number; }

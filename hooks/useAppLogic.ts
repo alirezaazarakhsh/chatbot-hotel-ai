@@ -138,14 +138,14 @@ export const useAppLogic = (language: Language) => {
     }, [activeChatId, setConversations, t]);
 
     const handleSendMessage = useCallback(async (
-        input: { text?: string; image?: { base64: string; mimeType: string; dataUrl: string } },
+        input: { text?: string; image?: { base64: string; mimeType: string; dataUrl: string; }, audio?: { base64: string; mimeType: string; dataUrl: string; } },
         callbacks: {
             isBotVoiceEnabled: boolean; botVoice: BotVoice; faqs: FAQ[];
             initAudioContext: () => void; queueAndPlayTTS: (text: string, messageId: string) => Promise<void>;
             isMapEnabled: boolean; userLocation: { lat: number, lng: number } | null;
         }
     ) => {
-        if (isLoading || (!input.text?.trim() && !input.image)) return;
+        if (isLoading || (!input.text?.trim() && !input.image && !input.audio)) return;
         callbacks.initAudioContext();
         abortController.current = new AbortController();
         setIsLoading(true);
@@ -154,8 +154,11 @@ export const useAppLogic = (language: Language) => {
         if (!conversation) { setIsLoading(false); return; }
 
         const userMessage: Message = {
-            id: `msg_${Date.now()}_user`, sender: 'user', text: input.text || '',
+            id: `msg_${Date.now()}_user`,
+            sender: 'user',
+            text: input.audio ? t('voiceMessagePlaceholder') : input.text || '',
             imageUrl: input.image?.dataUrl,
+            audioUrl: input.audio?.dataUrl,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
@@ -165,7 +168,13 @@ export const useAppLogic = (language: Language) => {
         };
         
         const updatedConversation: Conversation = { ...conversation, messages: [...conversation.messages, userMessage, botMessage], lastUpdated: Date.now() };
-        if (conversation.messages.length === 0 && input.text) updatedConversation.title = input.text.substring(0, 35);
+        if (conversation.messages.length === 0) {
+            if (input.text && !input.audio) {
+                updatedConversation.title = input.text.substring(0, 35);
+            } else if (input.audio) {
+                updatedConversation.title = t('voiceMessageTitle');
+            }
+        }
         setConversations(prev => prev.map(c => c.id === activeChatId ? updatedConversation : c));
 
         try {
@@ -183,8 +192,16 @@ export const useAppLogic = (language: Language) => {
             });
 
             const userParts: Part[] = [];
-            if (input.image) userParts.push({ inlineData: { mimeType: input.image.mimeType, data: input.image.base64 } });
-            if (input.text) userParts.push({ text: input.text });
+            if (input.image) {
+                userParts.push({ inlineData: { mimeType: input.image.mimeType, data: input.image.base64 } });
+            }
+            if (input.audio) {
+                userParts.push({ inlineData: { mimeType: input.audio.mimeType, data: input.audio.base64 } });
+                userParts.push({ text: t('transcribeAndRespond') });
+            }
+            if (input.text && !input.audio) {
+                userParts.push({ text: input.text });
+            }
 
             const contents = [...history, { role: 'user', parts: userParts }];
 

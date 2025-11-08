@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { DEFAULT_FONT, API_BASE_URL } from './constants';
+import { DEFAULT_FONT } from './constants';
 import { Language, Theme, BotVoice } from './types';
-import { audioUtils } from './utils/audioUtils';
 import { apiService } from './api/apiService';
 import { Icons } from './components/Icons';
 import { LoadingSpinner } from './components/LoadingSpinner';
@@ -13,6 +12,17 @@ import { MessageRenderer } from './components/MessageRenderer';
 import { changelog } from './i18n/translations';
 
 const packageVersion = process.env.APP_VERSION;
+
+// Helper function to decode base64 string to Uint8Array, moved from audioUtils
+const decode = (base64: string): Uint8Array => {
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+};
 
 
 // --- MAIN APP COMPONENT ---
@@ -76,7 +86,7 @@ const App: React.FC = () => {
                     });
                 },
                 (error) => {
-                    console.error("Geolocation error:", error);
+                    console.error(`Geolocation error: ${error.code} - ${error.message}`);
                 }
             );
         }
@@ -84,7 +94,7 @@ const App: React.FC = () => {
     
     const initAudioContext = useCallback(() => {
         if (!audioContextRef.current) {
-            try { const AudioContext = window.AudioContext || (window as any).webkitAudioContext; audioContextRef.current = new AudioContext({ sampleRate: 24000 }); }
+            try { const AudioContext = window.AudioContext || (window as any).webkitAudioContext; audioContextRef.current = new AudioContext(); }
             catch (e) { console.error("Web Audio API not supported.", e); }
         }
         if (audioContextRef.current?.state === 'suspended') audioContextRef.current.resume();
@@ -98,8 +108,8 @@ const App: React.FC = () => {
         }
         try {
             const { audio_data } = await apiService.generateTTS(text, botVoice);
-            const decodedBytes = audioUtils.decode(audio_data);
-            const audioBuffer = await audioUtils.decodeAudioData(decodedBytes, ctx);
+            const decodedBytes = decode(audio_data);
+            const audioBuffer = await ctx.decodeAudioData(decodedBytes.buffer);
             
             const source = ctx.createBufferSource();
             source.buffer = audioBuffer;
@@ -134,23 +144,35 @@ const App: React.FC = () => {
 
     const handleMicClick = useCallback(async () => {
         initAudioContext();
-        if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); return; }
+        if (isRecording) {
+            mediaRecorderRef.current?.stop();
+            setIsRecording(false);
+            return;
+        }
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
             mediaRecorderRef.current = recorder;
             audioChunksRef.current = [];
-            recorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data) };
+            recorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
             recorder.onstop = () => {
-                // NOTE: Audio-to-text functionality is temporarily disabled in favor of the new
-                // client-side multimodal and grounding features.
-                // A future update could re-enable this with a client-side transcription solution.
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const dataUrl = reader.result as string;
+                    const base64 = dataUrl.split(',')[1];
+                    handleSendMessage(
+                        { audio: { base64, mimeType: 'audio/webm', dataUrl: URL.createObjectURL(audioBlob) } },
+                        { isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS, isMapEnabled, userLocation }
+                    );
+                };
+                reader.readAsDataURL(audioBlob);
                 stream.getTracks().forEach(track => track.stop());
             };
             recorder.start();
             setIsRecording(true);
         } catch (err) { console.error("Mic error:", err); alert(t('micAccessDenied')); }
-    }, [isRecording, initAudioContext, t]);
+    }, [isRecording, initAudioContext, t, handleSendMessage, isBotVoiceEnabled, botVoice, faqs, queueAndPlayTTS, isMapEnabled, userLocation]);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

@@ -1,5 +1,5 @@
 
-export const API_BASE_URL = '/api/v1';
+export const API_BASE_URL = '/api/v1/chatbot';
 export const DEFAULT_FONT = 'Yekan Bakh';
 
 export const AVAILABLE_FONTS = [
