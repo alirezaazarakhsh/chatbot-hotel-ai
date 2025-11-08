@@ -77,19 +77,19 @@ export const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; i
     };
     
     return (
-        <div className="group relative">
+        <div className="group">
              {imageUrl && <img src={imageUrl} alt={t('imagePreview')} className="rounded-lg mb-2 max-w-full h-auto" />}
              {audioUrl && <CustomAudioPlayer audioUrl={audioUrl} timestamp={timestamp || ''} sender={sender}/>}
              {isSpeaking && <div className="flex items-center space-x-2 rtl:space-x-reverse"><Icons.Speaking /></div>}
              {text && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(displayedText)}</p>{isMapEnabled && location && <MapPreview location={location} t={t} />}</div>)}
              {sender === 'bot' && text && !isSpeaking && !isLoading && (
-                <div className={`absolute top-1 flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${document.documentElement.dir === 'rtl' ? '-left-9' : '-right-9'}`}>
-                    <button onClick={() => onCopy(text, id)} className="p-1.5 rounded-md hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-500" title={copiedMessageId === id ? t('copied') : t('copy')}>
+                <div className="flex items-center justify-end gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => onCopy(text, id)} className="p-1 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400" title={copiedMessageId === id ? t('copied') : t('copy')}>
                         {copiedMessageId === id ? <Icons.Check /> : <Icons.Copy />}
                     </button>
                     <button
                         onClick={() => onFeedback(id, 'like')}
-                        className={`p-1.5 rounded-md hover:bg-green-500/20 ${feedback === 'like' ? 'text-green-500' : 'text-neutral-500 hover:text-green-500'}`}
+                        className={`p-1 rounded-md hover:bg-green-500/20 ${feedback === 'like' ? 'text-green-500' : 'text-neutral-500 dark:text-neutral-400 hover:text-green-500'}`}
                         aria-label={t('likeResponse')}
                         title={t('likeResponse')}
                     >
@@ -97,7 +97,7 @@ export const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; i
                     </button>
                     <button
                         onClick={() => onFeedback(id, 'dislike')}
-                        className={`p-1.5 rounded-md hover:bg-red-500/20 ${feedback === 'dislike' ? 'text-red-500' : 'text-neutral-500 hover:text-red-500'}`}
+                        className={`p-1 rounded-md hover:bg-red-500/20 ${feedback === 'dislike' ? 'text-red-500' : 'text-neutral-500 dark:text-neutral-400 hover:text-red-500'}`}
                         aria-label={t('dislikeResponse')}
                         title={t('dislikeResponse')}
                     >
