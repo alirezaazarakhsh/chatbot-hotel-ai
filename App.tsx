@@ -91,7 +91,7 @@ const App: React.FC = () => {
     const onSendMessage = () => {
         handleSendMessage(
             { text: userInput, image: imageToSend },
-            { isBotVoiceEnabled, botVoice, hotelLinks: botSettings.hotel_links, faqs, initAudioContext, queueAndPlayTTS }
+            { isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS }
         );
         setUserInput('');
         setImageToSend(null);
@@ -111,7 +111,7 @@ const App: React.FC = () => {
                 const reader = new FileReader();
                 reader.onloadend = () => {
                     const [meta, base64] = (reader.result as string).split(',');
-                    if (base64) handleSendMessage({ audio: { data: base64, mimeType: 'audio/webm', url: reader.result as string } }, { isBotVoiceEnabled, botVoice, hotelLinks: botSettings.hotel_links, faqs, initAudioContext, queueAndPlayTTS });
+                    if (base64) handleSendMessage({ audio: { data: base64, mimeType: 'audio/webm', url: reader.result as string } }, { isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS });
                 };
                 reader.readAsDataURL(audioBlob);
                 stream.getTracks().forEach(track => track.stop());
@@ -119,7 +119,7 @@ const App: React.FC = () => {
             recorder.start();
             setIsRecording(true);
         } catch (err) { console.error("Mic error:", err); alert(t('micAccessDenied')); }
-    }, [isRecording, handleSendMessage, isBotVoiceEnabled, botVoice, botSettings.hotel_links, faqs, initAudioContext, queueAndPlayTTS, t]);
+    }, [isRecording, handleSendMessage, isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS, t]);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

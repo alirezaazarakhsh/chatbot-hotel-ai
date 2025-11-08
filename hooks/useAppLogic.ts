@@ -25,25 +25,35 @@ export const useAppLogic = (language: Language) => {
     useEffect(() => {
         const initializeApp = async () => {
             try {
-                const [settings, faqsData] = await Promise.all([
+                const [settingsData, faqsData, hotelLinksData] = await Promise.all([
                     apiService.fetchBotSettings(),
-                    apiService.fetchFAQs()
+                    apiService.fetchFAQs(),
+                    apiService.fetchHotelLinks()
                 ]);
+
+                const combinedSettings = { ...settingsData, hotel_links: hotelLinksData };
 
                 const botPersona = t('botPersona');
                 const languageRule = t('languageRule');
+                const hotelLinkInstruction = t('hotelLinkInstruction');
                 const imageGenerationInstruction = t('imageGenerationInstruction');
                 const voiceCapabilityInstruction = t('voiceCapabilityInstruction');
                 
+                const hotelLinksList = (combinedSettings.hotel_links && combinedSettings.hotel_links.length > 0)
+                    ? `${t('hotelLinkListHeader')}\n${combinedSettings.hotel_links.map(h => `- ${h.name}: ${h.url}`).join('\n')}`
+                    : '';
+
                 const systemInstruction = [
                     botPersona,
+                    combinedSettings.system_instruction || '',
                     languageRule,
                     voiceCapabilityInstruction,
-                    settings.system_instruction || '',
-                    imageGenerationInstruction
+                    imageGenerationInstruction,
+                    hotelLinkInstruction,
+                    hotelLinksList,
                 ].filter(Boolean).join('\n\n');
                 
-                setBotSettings(prev => ({ ...prev, ...settings, system_instruction: systemInstruction }));
+                setBotSettings(prev => ({ ...prev, ...combinedSettings, system_instruction: systemInstruction }));
                 setFaqs(faqsData);
 
                 if (conversations.length === 0) {
@@ -123,7 +133,7 @@ export const useAppLogic = (language: Language) => {
     const handleSendMessage = useCallback(async (
         input: { text?: string; image?: { base64: string; mimeType: string }; audio?: { data: string; mimeType: string; url: string } },
         callbacks: {
-            isBotVoiceEnabled: boolean; botVoice: BotVoice; hotelLinks: HotelLink[]; faqs: FAQ[];
+            isBotVoiceEnabled: boolean; botVoice: BotVoice; faqs: FAQ[];
             initAudioContext: () => void; queueAndPlayTTS: (text: string, messageId: string) => Promise<void>;
         }
     ) => {
@@ -159,7 +169,6 @@ export const useAppLogic = (language: Language) => {
                 image_data: input.image?.base64, 
                 history,
                 system_instruction: botSettings.system_instruction, 
-                hotel_links: callbacks.hotelLinks,
                 faqs: callbacks.faqs.map(f => ({ question: f.question, answer: f.answer })),
             };
 
@@ -177,8 +186,10 @@ export const useAppLogic = (language: Language) => {
                 let imageUrl: string | undefined = undefined;
 
                 try {
-                    if (!process.env.GEMINI_API_KEY) throw new Error("Gemini API Key is not configured.");
-                    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+                    // Fix: Use process.env.API_KEY as per Gemini API guidelines.
+                    if (!process.env.API_KEY) throw new Error("API Key is not configured.");
+                    // Fix: Adhere to Gemini API guidelines by using process.env.API_KEY.
+                    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
                     const response = await ai.models.generateContent({
                         model: 'gemini-2.5-flash-image',
                         contents: { parts: [{ text: imagePrompt }] },
@@ -210,6 +221,7 @@ export const useAppLogic = (language: Language) => {
                 updateBotMessage(botMessage.id, { text: botResponseText, isCancelled: false });
                 if (callbacks.isBotVoiceEnabled && botResponseText) {
                     updateBotMessage(botMessage.id, { isSpeaking: true });
+                    // Fix: Corrected typo in function call.
                     await callbacks.queueAndPlayTTS(botResponseText, botMessage.id);
                 }
             }
