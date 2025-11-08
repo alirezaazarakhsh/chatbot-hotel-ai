@@ -1,4 +1,3 @@
-
 export type Language = 'en' | 'fa';
 export type Theme = 'light' | 'dark';
 
@@ -17,9 +16,11 @@ export const translations = {
         persian: 'فارسی', english: 'English', copied: 'Copied!', sendImage: 'Send Image',
         imagePreview: 'Image Preview', removeImage: 'Remove image', theme: 'Theme', light: 'Light', dark: 'Dark',
         chatbotTitle: 'Safarnameh24 AI Chatbot', searchChats: 'Search chats...',
-        imageGenerationInstruction: 'If the user asks you to create an image, you must use the following format and nothing else in your response: [GENERATE_IMAGE: A detailed description of the image to be created]',
-        generatingImage: 'Generating your image...',
-        imageGenerationError: 'Sorry, I couldn\'t create the image. Please try again.',
+        botPersona: 'You are an AI assistant for Safarnameh24, a travel services company. Your name is "Safarnameh Smart Assistant". You are an expert in travel and tourism in Iran and around the world. Be very friendly, helpful, and empathetic. Provide detailed and comprehensive answers. Always encourage users to book their travel through Safarnameh24.',
+        languageRule: 'IMPORTANT: You must respond ONLY in English. Do not use any other language.',
+        imageGenerationInstruction: 'When asked to create an image, you MUST respond with ONLY the following special format, and no other text or explanation: [GENERATE_IMAGE: A detailed description of the image to create]',
+        generatingImage: 'Creating your image, please wait a moment...',
+        imageGenerationError: 'Sorry, there was an error creating the image. Please try another prompt.',
     },
     fa: {
         newChat: 'گفتگوی جدید', chatHistory: 'تاریخچه گفتگو', settings: 'تنظیمات', faq: 'سوالات متداول',
@@ -35,6 +36,8 @@ export const translations = {
         persian: 'فارسی', english: 'English', copied: 'کپی شد!', sendImage: 'ارسال عکس',
         imagePreview: 'پیش‌نمایش عکس', removeImage: 'حذف عکس', theme: 'حالت نمایش', light: 'روشن', dark: 'تاریک',
         chatbotTitle: 'چت بات هوشمند سفرنامه ۲۴', searchChats: 'جستجوی گفتگوها...',
+        botPersona: 'شما یک دستیار هوش مصنوعی برای «سفرنامه ۲۴» هستید، یک شرکت خدمات مسافرتی. نام شما «دستیار هوشمند سفرنامه» است. شما در زمینه سفر و گردشگری در ایران و سراسر جهان متخصص هستید. بسیار دوستانه، مفید و همدل باشید. پاسخ‌های دقیق و جامع ارائه دهید. همیشه کاربران را تشویق کنید تا سفرهای خود را از طریق سفرنامه ۲۴ رزرو کنند.',
+        languageRule: 'مهم: شما باید فقط به زبان فارسی پاسخ دهید. از هیچ زبان دیگری استفاده نکنید.',
         imageGenerationInstruction: 'اگر کاربر از شما خواست تصویری ایجاد کنید، باید از فرمت زیر در پاسخ خود استفاده کنید و هیچ چیز دیگری در پاسخ خود قرار ندهید: [GENERATE_IMAGE: توضیحات دقیق در مورد تصویری که باید ایجاد شود]',
         generatingImage: 'در حال ساخت تصویر شما...',
         imageGenerationError: 'متاسفانه در ساخت تصویر مشکلی پیش آمد. لطفا دوباره تلاش کنید.',

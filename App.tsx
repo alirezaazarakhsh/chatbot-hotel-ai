@@ -156,7 +156,7 @@ const App: React.FC = () => {
     return (
         <div className="h-screen bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden" style={{ fontFamily: appFont }}>
             {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden" />}
-            <aside className={`flex flex-col bg-white dark:bg-neutral-900 transition-transform duration-300 ease-in-out ${sidebarClass}`}>
+            <aside className={`flex flex-col bg-neutral-50 dark:bg-neutral-900 transition-transform duration-300 ease-in-out ${sidebarClass}`}>
                 <div className="p-4 flex-grow flex flex-col min-h-0">
                     <button onClick={startNewChat} className="flex items-center justify-center w-full px-4 py-2 mb-2 bg-[#F30F26] text-white rounded-lg hover:bg-red-700 transition-colors"><Icons.Plus />{t('newChat')}</button>
                     <div className="relative mb-2">
@@ -209,23 +209,17 @@ const App: React.FC = () => {
                      {activeConversation && activeConversation.messages.length > 0 ? (
                         <div className="space-y-6">
                             {activeConversation.messages.map((msg, index) => (
-                                <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[85%] md:max-w-2xl p-3 sm:p-4 rounded-2xl ${msg.sender === 'user' ? 'bg-[#F30F26] text-white rounded-es-none' : 'bg-white dark:bg-neutral-700 rounded-ee-none'}`}>
+                                <div key={msg.id} className={`flex items-end gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    {msg.sender === 'bot' && (
+                                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-600 flex items-center justify-center">
+                                            <img src={botSettings.logo_url} alt="Bot" className="w-6 h-6 object-contain p-0.5" />
+                                        </div>
+                                    )}
+                                    <div className={`max-w-[85%] md:max-w-2xl p-3 sm:p-4 rounded-2xl ${msg.sender === 'user' ? 'bg-[#F30F26] text-white' : 'bg-white dark:bg-neutral-700 rounded-tl-none'}`}>
                                        <MessageRenderer message={msg} isLoading={isLoading} isLastMessage={index === activeConversation.messages.length - 1} isMapEnabled={isMapEnabled} onCopy={handleCopy} copiedMessageId={copiedMessageId} t={t} />
                                     </div>
                                 </div>
                             ))}
-                             {isLoading && activeConversation.messages[activeConversation.messages.length - 1]?.sender === 'bot' && (
-                                <div className="flex justify-start">
-                                    <div className="max-w-[85%] md:max-w-2xl p-3 sm:p-4 rounded-2xl bg-white dark:bg-neutral-700">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 bg-neutral-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                                            <div className="w-2 h-2 bg-neutral-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                                            <div className="w-2 h-2 bg-neutral-500 rounded-full animate-bounce"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                             <div ref={endOfMessagesRef} />
                         </div>
                     ) : (
@@ -241,9 +235,9 @@ const App: React.FC = () => {
                     {imageToSend && (<div className="relative mb-2 w-20 h-20"><img src={imageToSend.dataUrl} alt={t('imagePreview')} className="w-full h-full object-cover rounded-lg"/><button onClick={() => setImageToSend(null)} className={`absolute -top-2 bg-neutral-800 text-white rounded-full p-0.5 w-6 h-6 flex items-center justify-center ${language === 'fa' ? '-right-2' : '-left-2'}`} aria-label={t('removeImage')}><Icons.Close /></button></div>)}
                     <div className="relative">
                          <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden"/>
-                        <textarea value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} placeholder={t('messagePlaceholder')} className="w-full py-3 text-base bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none ps-12 pe-20 sm:pe-24" rows={1} disabled={isLoading} />
-                         <div className="absolute top-1/2 -translate-y-1/2 start-2 sm:start-3"><button onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!imageToSend} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50" title={t('sendImage')}><Icons.Paperclip /></button></div>
-                         <div className="absolute top-1/2 -translate-y-1/2 flex items-center gap-1 end-2 sm:end-3">
+                        <textarea value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} placeholder={t('messagePlaceholder')} className={`w-full py-3 text-base bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none ${language === 'fa' ? 'pr-12 pl-20 sm:pl-24' : 'pl-12 pr-20 sm:pr-24'}`} rows={1} disabled={isLoading} />
+                         <div className={`absolute top-1/2 -translate-y-1/2 ${language === 'fa' ? 'right-2 sm:right-3' : 'left-2 sm:left-3'}`}><button onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!imageToSend} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50" title={t('sendImage')}><Icons.Paperclip /></button></div>
+                         <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 ${language === 'fa' ? 'left-2 sm:left-3' : 'right-2 sm:right-3'}`}>
                             {isLoading ? (<button onClick={handleStopGenerating} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700" title={t('stopGenerating')}><Icons.StopGenerating /></button>)
                              : (
                                 <>

@@ -28,9 +28,17 @@ export const useAppLogic = (language: Language) => {
                     apiService.fetchBotSettings(),
                     apiService.fetchFAQs()
                 ]);
-                
+
+                const botPersona = t('botPersona');
+                const languageRule = t('languageRule');
                 const imageGenerationInstruction = t('imageGenerationInstruction');
-                const systemInstruction = `${settings.system_instruction || ''}\n\n${imageGenerationInstruction}`;
+                
+                const systemInstruction = [
+                    botPersona,
+                    languageRule,
+                    settings.system_instruction || '',
+                    imageGenerationInstruction
+                ].filter(Boolean).join('\n\n');
                 
                 setBotSettings(prev => ({ ...prev, ...settings, system_instruction: systemInstruction }));
                 setFaqs(faqsData);
@@ -50,7 +58,7 @@ export const useAppLogic = (language: Language) => {
             }
         };
         initializeApp();
-    }, [t]); // This will re-run on language change to update system prompt
+    }, [t]); 
 
     const updateBotMessage = useCallback((messageId: string, updates: Partial<Message>) => {
         setConversations(prev => prev.map(c => c.id === activeChatId ? {

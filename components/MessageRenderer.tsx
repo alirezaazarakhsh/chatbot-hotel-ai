@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Message } from '../types';
 import { translations } from '../i18n/translations';
@@ -52,6 +53,16 @@ export const MessageRenderer: React.FC<{ message: Message; isLoading: boolean; i
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
     }, [text, sender, isLastMessage, isLoading, isCancelled]);
+
+    if (isLoading && isLastMessage && sender === 'bot' && !text && !imageUrl && !audioUrl) {
+        return (
+            <div className="flex items-center gap-2.5 px-2">
+                <div className="w-2.5 h-2.5 bg-neutral-400 dark:bg-neutral-500 rounded-full animate-pulse" style={{animationDelay: '0s'}}></div>
+                <div className="w-2.5 h-2.5 bg-neutral-400 dark:bg-neutral-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                <div className="w-2.5 h-2.5 bg-neutral-400 dark:bg-neutral-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+            </div>
+        );
+    }
 
     const parseTextToComponents = (inputText: string): React.ReactNode[] => {
         const cleanText = inputText.replace(/\(مکان:\s*([^)]+)\)/g, '').replace(/\(Location:\s*([^)]+)\)/g, '').trim();

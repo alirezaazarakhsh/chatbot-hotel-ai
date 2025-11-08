@@ -32,11 +32,13 @@
       }
     </script>
     <script>
-      // Set theme on page load to avoid FOUC (Flash of Unstyled Content)
-      if (localStorage.theme === 'dark' || (!('theme' in localStorage))) {
-        document.documentElement.classList.add('dark')
+      // Set theme on page load to avoid FOUC (Flash of Unstyled Content).
+      // We default to dark mode. We only switch to light if the user has explicitly
+      // chosen it. `useLocalStorage` stores values as JSON strings (e.g., '"light"').
+      if (localStorage.theme === '"light"') {
+        document.documentElement.classList.remove('dark');
       } else {
-        document.documentElement.classList.remove('dark')
+        document.documentElement.classList.add('dark');
       }
     </script>
   <script type="importmap">

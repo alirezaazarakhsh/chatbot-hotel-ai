@@ -4,28 +4,41 @@ import { HotelLink, FAQ, BotVoice, BotSettings } from '../types';
 
 export const apiService = {
     fetchBotSettings: async (): Promise<Partial<BotSettings>> => {
-        let settings: Partial<BotSettings> = {};
         try {
             const settingsResponse = await fetch(`${API_BASE_URL}/settings/`);
+            let settings: Partial<BotSettings> = {};
             if (settingsResponse.ok) {
                 settings = await settingsResponse.json();
             } else {
-                console.error(`Failed to fetch bot settings. Status: ${settingsResponse.status}. The app will use default settings.`);
+                console.error(`Failed to fetch bot settings. Status: ${settingsResponse.status}.`);
             }
-        } catch (error) {
-            console.error('Error fetching bot settings:', error, 'The app will use default settings.');
-        }
 
-        // This fetch correctly retrieves hotel links from the specified API endpoint.
-        const hotelLinksResponse = await fetch(`/api/v1/hotel/hotels/chatbot/`);
-        if (!hotelLinksResponse.ok) throw new Error('Failed to fetch hotel links');
-        const hotelLinks: HotelLink[] = await hotelLinksResponse.json();
-        return { ...settings, hotel_links: hotelLinks };
+            const hotelLinksResponse = await fetch(`/api/v1/hotel/hotels/chatbot/`);
+            let hotelLinks: HotelLink[] = [];
+            if (hotelLinksResponse.ok) {
+                hotelLinks = await hotelLinksResponse.json();
+            } else {
+                console.error(`Failed to fetch hotel links. Status: ${hotelLinksResponse.status}.`);
+            }
+            
+            return { ...settings, hotel_links: hotelLinks };
+        } catch (error) {
+            console.error('Error fetching initial bot data:', error, 'The app will use default settings.');
+            return { hotel_links: [] }; // Return default structure on catastrophic failure
+        }
     },
     fetchFAQs: async (): Promise<FAQ[]> => {
-        const response = await fetch(`${API_BASE_URL}/faqs/`);
-        if (!response.ok) throw new Error('Failed to fetch FAQs');
-        return await response.json();
+        try {
+            const response = await fetch(`${API_BASE_URL}/faqs/`);
+            if (!response.ok) {
+                console.error(`Failed to fetch FAQs. Status: ${response.status}.`);
+                return [];
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching FAQs:', error);
+            return [];
+        }
     },
     sendChatMessage: async (payload: any, signal: AbortSignal): Promise<string> => {
         const response = await fetch(`${API_BASE_URL}/message/`, {
