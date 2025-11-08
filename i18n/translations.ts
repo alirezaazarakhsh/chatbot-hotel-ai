@@ -23,7 +23,7 @@ export const translations = {
         imageGenerationInstruction: 'When asked to create an image, you MUST respond with ONLY the following special format, and no other text or explanation: [GENERATE_IMAGE: A detailed description of the image to create]',
         generatingImage: 'Creating your image, please wait a moment...',
         imageGenerationError: 'Sorry, there was an error creating the image. Please try another prompt.',
-        hotelLinkInstruction: 'You will be provided with a list of official hotel links. When a user asks for a hotel link, you MUST use the corresponding link from this list. Do not search for links yourself. If the hotel is not in the list, state that you do not have the direct link but they can search for it on Safarnameh24.com.',
+        hotelLinkInstruction: 'You will be provided with a list of official hotel links. When a user asks for a hotel link, you MUST use the corresponding link from this list. Do not search for links yourself. If the hotel is not in the list, state that you do not have the direct link but they can search for it on Safarnameh24.com. CRITICAL: When providing a hotel link, you MUST output the raw URL exactly as it appears in the list. Do not use any extra formatting, brackets, parentheses, or markdown links ([like this](url)). Just send the plain URL text.',
         hotelLinkListHeader: 'Here is the official list of hotels and their links you MUST use:',
     },
     fa: {
@@ -47,7 +47,7 @@ export const translations = {
         imageGenerationInstruction: 'اگر کاربر از شما خواست تصویری ایجاد کنید، باید از فرمت زیر در پاسخ خود استفاده کنید و هیچ چیز دیگری در پاسخ خود قرار ندهید: [GENERATE_IMAGE: توضیحات دقیق در مورد تصویری که باید ایجاد شود]',
         generatingImage: 'در حال ساخت تصویر شما...',
         imageGenerationError: 'متاسفانه در ساخت تصویر مشکلی پیش آمد. لطفا دوباره تلاش کنید.',
-        hotelLinkInstruction: 'لیستی از لینک‌های رسمی هتل‌ها در اختیار شما قرار می‌گیرد. زمانی که کاربر درخواست لینک یک هتل را دارد، شما باید از لینک مربوطه در این لیست استفاده کنید. از جستجوی لینک‌ها خودداری کنید. اگر هتل در لیست نبود، اعلام کنید که لینک مستقیم آن را در اختیار ندارید اما می‌توانند آن را در سایت safarnameh24.com جستجو کنند.',
+        hotelLinkInstruction: 'لیستی از لینک‌های رسمی هتل‌ها در اختیار شما قرار می‌گیرد. زمانی که کاربر درخواست لینک یک هتل را دارد، شما باید از لینک مربوطه در این لیست استفاده کنید. از جستجوی لینک‌ها خودداری کنید. اگر هتل در لیست نبود، اعلام کنید که لینک مستقیم آن را در اختیار ندارید اما می‌توانند آن را در سایت safarnameh24.com جستجو کنند. نکته بسیار مهم: هنگام ارائه لینک هتل، باید URL را دقیقاً همانطور که در لیست آمده است، بدون هیچ‌گونه قالب‌بندی اضافی مانند براکت، پرانتز، یا لینک‌های مارک‌داون ([مانند این](آدرس))، نمایش دهید. فقط متن ساده URL را ارسال کنید.',
         hotelLinkListHeader: 'این لیست رسمی هتل‌ها و لینک‌های آن‌هاست که باید از آن استفاده کنید:',
     }
 };
