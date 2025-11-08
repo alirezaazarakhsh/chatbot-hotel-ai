@@ -124,9 +124,10 @@ const App: React.FC = () => {
         }
     }, [isBotVoiceEnabled, botVoice, updateBotMessage]);
     
-    const onSendMessage = () => {
+    const onSendMessage = (text = userInput) => {
+        if (!text.trim() && !imageToSend) return;
         handleSendMessage(
-            { text: userInput, image: imageToSend },
+            { text, image: imageToSend },
             { isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS, isMapEnabled, userLocation }
         );
         setUserInput('');
@@ -190,6 +191,17 @@ const App: React.FC = () => {
             setLastSeenVersion(packageVersion);
             setShowUpdatePulse(false);
         }
+    };
+
+    const examplePrompts = [
+        { title: t('examplePrompt1Title'), prompt: t('examplePrompt1'), icon: <Icons.Hotel /> },
+        { title: t('examplePrompt2Title'), prompt: t('examplePrompt2'), icon: <Icons.MapPin /> },
+        { title: t('examplePrompt3Title'), prompt: t('examplePrompt3'), icon: <Icons.Plane /> },
+        { title: t('examplePrompt4Title'), prompt: t('examplePrompt4'), icon: <Icons.ImageIcon /> },
+    ];
+
+    const handleExamplePromptClick = (prompt: string) => {
+        onSendMessage(prompt);
     };
 
     if (!isAppReady) return <LoadingSpinner />;
@@ -279,7 +291,7 @@ const App: React.FC = () => {
                                         </div>
                                     )}
                                     <div className={`max-w-[85%] md:max-w-2xl p-3 sm:p-4 rounded-2xl ${msg.sender === 'user' ? 'bg-[#F30F26] text-white' : 'bg-white dark:bg-neutral-700'}`}>
-                                       <MessageRenderer message={msg} isLoading={isLoading} isLastMessage={index === activeConversation.messages.length - 1} isMapEnabled={isMapEnabled} onCopy={handleCopy} copiedMessageId={copiedMessageId} onFeedback={handleFeedback} t={t} language={language} />
+                                       <MessageRenderer message={msg} isLoading={isLoading} isLastMessage={index === activeConversation.messages.length - 1} onCopy={handleCopy} copiedMessageId={copiedMessageId} onFeedback={handleFeedback} t={t} language={language} />
                                     </div>
                                 </div>
                             ))}
@@ -290,6 +302,27 @@ const App: React.FC = () => {
                             <img src={botSettings.logo_url} alt="Safarnameh24 Logo" className="w-40 h-auto mb-4" />
                             <h1 className="text-3xl md:text-4xl font-bold text-neutral-800 dark:text-neutral-200">{botSettings.welcome_title ? (language === 'fa' ? botSettings.welcome_title : 'Safarnameh24 Smart Chatbot') : t('welcomeMessageTitle')}</h1>
                             <p className="mt-4 max-w-md">{botSettings.welcome_message ? (language === 'fa' ? botSettings.welcome_message : 'Welcome! Ask me about hotels, restaurants, and attractions.') : t('welcomeMessageBody')}</p>
+                            
+                            <div className="mt-12 w-full max-w-2xl">
+                                <h2 className="text-lg font-semibold text-neutral-700 dark:text-neutral-300 mb-4">{t('examplePromptsTitle')}</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-start">
+                                    {examplePrompts.map((item, index) => (
+                                        <button 
+                                            key={index} 
+                                            onClick={() => handleExamplePromptClick(item.prompt)}
+                                            className="p-4 bg-white dark:bg-neutral-700/50 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors border border-neutral-200 dark:border-neutral-700 w-full"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-[#F30F26]">{item.icon}</div>
+                                                <div>
+                                                    <h3 className="font-semibold text-neutral-800 dark:text-neutral-200">{item.title}</h3>
+                                                    <p className="text-sm text-neutral-500 dark:text-neutral-400">{item.prompt}</p>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -304,7 +337,7 @@ const App: React.FC = () => {
                             {isLoading ? (<button onClick={handleStopGenerating} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700" title={t('stopGenerating')}><Icons.StopGenerating /></button>)
                              : (
                                 <>
-                                 {userInput.trim() || imageToSend ? (<button onClick={onSendMessage} disabled={isLoading} className="p-2 rounded-full bg-[#F30F26] text-white disabled:bg-neutral-400" title={t('sendMessage')}><Icons.SendArrow /></button>)
+                                 {userInput.trim() || imageToSend ? (<button onClick={() => onSendMessage()} disabled={isLoading} className="p-2 rounded-full bg-[#F30F26] text-white disabled:bg-neutral-400" title={t('sendMessage')}><Icons.SendArrow /></button>)
                                  : isRecording ? (<button onClick={handleMicClick} className="p-2 rounded-full bg-red-600 text-white animate-pulse"><Icons.Stop /></button>)
                                  : (<button onClick={handleMicClick} disabled={isLoading} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700" title={t('recordMessage')}><Icons.Mic /></button>)}
                                 </>

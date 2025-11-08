@@ -1,6 +1,4 @@
-
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Message, Language } from '../types';
 import { translations } from '../i18n/translations';
 import { CustomAudioPlayer } from './CustomAudioPlayer';
@@ -11,58 +9,23 @@ export const MessageRenderer: React.FC<{
     message: Message;
     isLoading: boolean;
     isLastMessage: boolean;
-    isMapEnabled: boolean;
     onCopy: (text: string, id: string) => void;
     copiedMessageId: string | null;
     onFeedback: (messageId: string, feedback: 'like' | 'dislike') => void;
     t: (key: keyof typeof translations.en) => string;
     language: Language;
-}> = ({ message, isLoading, isLastMessage, isMapEnabled, onCopy, copiedMessageId, onFeedback, t, language }) => {
-    const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl, isCancelled, feedback, groundingChunks } = message;
-    const [displayedText, setDisplayedText] = useState('');
+}> = ({ message, isLoading, isLastMessage, onCopy, copiedMessageId, onFeedback, t, language }) => {
+    const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl, feedback, groundingChunks } = message;
     const [location, setLocation] = useState<string | null>(null);
-    const animationFrameRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (sender === 'bot' && text) {
             const locationMatch = text.match(/\(مکان:\s*([^)]+)\)/) || text.match(/\(Location:\s*([^)]+)\)/);
             setLocation(locationMatch ? locationMatch[1].trim() : null);
+        } else {
+            setLocation(null);
         }
     }, [text, sender]);
-
-    useEffect(() => {
-        const isBotGenerating = sender === 'bot' && isLastMessage && isLoading;
-
-        if (!isBotGenerating || isCancelled) {
-            setDisplayedText(text);
-            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-            return;
-        }
-
-        let currentText = '';
-        let startTime: number | null = null;
-        const typingSpeed = 50; // characters per second
-
-        const animate = (timestamp: number) => {
-            if (startTime === null) startTime = timestamp;
-            const elapsedTime = timestamp - startTime;
-            const charsToShow = Math.floor(elapsedTime / (1000 / typingSpeed));
-            
-            if (currentText.length < text.length) {
-                currentText = text.substring(0, charsToShow);
-                setDisplayedText(currentText);
-                animationFrameRef.current = requestAnimationFrame(animate);
-            } else {
-                 setDisplayedText(text);
-            }
-        };
-
-        animationFrameRef.current = requestAnimationFrame(animate);
-
-        return () => {
-            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-        };
-    }, [text, sender, isLastMessage, isLoading, isCancelled]);
 
     if (isLoading && isLastMessage && sender === 'bot' && !text && !imageUrl && !audioUrl) {
         return (
@@ -91,7 +54,7 @@ export const MessageRenderer: React.FC<{
              {imageUrl && <img src={imageUrl} alt={t('imagePreview')} className="rounded-lg mb-2 max-w-full h-auto" />}
              {audioUrl && <CustomAudioPlayer audioUrl={audioUrl} timestamp={timestamp || ''} sender={sender}/>}
              {isSpeaking && <div className="flex items-center space-x-2 rtl:space-x-reverse"><Icons.Speaking /></div>}
-             {text && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(displayedText)}</p>{isMapEnabled && location && <MapPreview location={location} t={t} />}</div>)}
+             {text && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(text)}</p>{location && <MapPreview location={location} t={t} />}</div>)}
              
              {groundingChunks && groundingChunks.length > 0 && (
                  <div className="mt-3 pt-2 border-t border-neutral-200 dark:border-neutral-700/60">
@@ -113,7 +76,7 @@ export const MessageRenderer: React.FC<{
                  </div>
              )}
 
-             {sender === 'bot' && text && !isSpeaking && !isLoading && (
+             {sender === 'bot' && text && !isSpeaking && !(isLastMessage && isLoading) && (
                 <div className={`flex items-center mt-2 opacity-0 group-hover:opacity-100 transition-opacity ${language === 'fa' ? 'justify-end' : 'justify-start'}`}>
                     <div className="flex items-center gap-0.5 p-1 rounded-full bg-white dark:bg-neutral-800/80 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700/60 shadow-sm">
                         <button onClick={() => onCopy(text, id)} className="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400 transition-colors" title={copiedMessageId === id ? t('copied') : t('copy')}>
