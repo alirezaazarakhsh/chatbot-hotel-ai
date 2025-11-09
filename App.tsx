@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -48,6 +50,7 @@ const App: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
     const [messageToSendAfterEdit, setMessageToSendAfterEdit] = useState<{ text: string } | null>(null);
+    const [promptForLocation, setPromptForLocation] = useState<string | null>(null);
 
     const endOfMessagesRef = useRef<HTMLDivElement>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -223,9 +226,41 @@ const App: React.FC = () => {
         }
     }, [messageToSendAfterEdit, handleSendMessage, isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS, isMapEnabled, userLocation]);
 
+    useEffect(() => {
+        if (promptForLocation && userLocation) {
+            onSendMessage(promptForLocation);
+            setPromptForLocation(null);
+        }
+    }, [promptForLocation, userLocation, onSendMessage]);
+
+    const handleLocationPrompt = (prompt: string) => {
+        if (!isMapEnabled) {
+            alert(t('enableMapsInSettings'));
+            setIsSettingsOpen(true);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setUserLocation({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                });
+                setPromptForLocation(prompt);
+            },
+            (error) => {
+                if (error.code === error.PERMISSION_DENIED) {
+                    alert(t('locationPermissionDenied'));
+                } else {
+                    alert(t('locationError'));
+                }
+            }
+        );
+    };
+
     const examplePrompts = [
         { title: t('examplePrompt1Title'), prompt: t('examplePrompt1'), icon: <Icons.Hotel /> },
-        { title: t('examplePrompt2Title'), prompt: t('examplePrompt2'), icon: <Icons.MapPin /> },
+        { title: t('examplePrompt2Title'), prompt: t('examplePrompt2'), icon: <Icons.MapPin />, requiresLocation: true },
         { title: t('examplePrompt3Title'), prompt: t('examplePrompt3'), icon: <Icons.Plane /> },
         { title: t('examplePrompt4Title'), prompt: t('examplePrompt4'), icon: <Icons.ImageIcon /> },
     ];
@@ -371,7 +406,7 @@ const App: React.FC = () => {
                                     {examplePrompts.map((item, index) => (
                                         <button 
                                             key={index} 
-                                            onClick={() => handleExamplePromptClick(item.prompt)}
+                                            onClick={() => item.requiresLocation ? handleLocationPrompt(item.prompt) : handleExamplePromptClick(item.prompt)}
                                             className="p-4 bg-white dark:bg-neutral-700/50 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors border border-neutral-200 dark:border-neutral-700 w-full"
                                         >
                                             <div className="flex items-center gap-3">
