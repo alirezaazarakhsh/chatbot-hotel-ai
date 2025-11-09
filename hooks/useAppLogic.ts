@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenAI, GenerateContentResponse, Part } from '@google/genai';
+// FIX: Corrected the import by replacing 'FunctionCallPart' with 'FunctionCall' as it is not an exported member.
+import { GoogleGenAI, GenerateContentResponse, Part, Tool, FunctionDeclaration, Type, FunctionCall } from '@google/genai';
 import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 import { apiService } from '../api/apiService';
@@ -116,6 +117,10 @@ export const useAppLogic = (language: Language) => {
         setConversations(newConversations);
     }, [activeChatId, conversations, setActiveChatId, setConversations, startNewChat, t]);
     
+    const handleClearChat = useCallback((id: string) => {
+        setConversations(prev => prev.map(c => c.id === id ? { ...c, messages: [] } : c));
+    }, [setConversations]);
+    
     const handleStopGenerating = useCallback(() => {
         if (abortController.current) {
             abortController.current.abort();
@@ -134,7 +139,8 @@ export const useAppLogic = (language: Language) => {
                 contents: prompt,
             });
             
-            const title = response.text.trim().replace(/"/g, '');
+            // FIX: Added nullish coalescing operator to handle cases where response.text might be undefined, preventing a type error.
+            const title = (response.text ?? '').trim().replace(/"/g, '');
             
             if (title) {
                 setConversations(prev => prev.map(c => c.id === chatId ? { ...c, title } : c));
@@ -182,6 +188,22 @@ export const useAppLogic = (language: Language) => {
         try {
             if (!process.env.API_KEY) throw new Error("API Key is not configured.");
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+            const generateImageTool: FunctionDeclaration = {
+                name: 'generate_image',
+                description: 'Generates an image based on a user description. Only use this when the user explicitly asks to create, draw, or generate an image.',
+                parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                        prompt: {
+                            type: Type.STRING,
+                            description: 'A detailed, creative, and descriptive prompt for the image to be generated. This must be in English.'
+                        }
+                    },
+                    required: ['prompt']
+                }
+            };
+            const tools: Tool[] = [{ functionDeclarations: [generateImageTool] }];
             
             const history = conversation.messages.map(msg => {
                 const parts: Part[] = [];
@@ -190,6 +212,9 @@ export const useAppLogic = (language: Language) => {
                     if (inlineDataPart) parts.push(inlineDataPart);
                 }
                 if (msg.text) parts.push({ text: msg.text });
+                 if (msg.toolCall && !msg.toolCall.thinking) {
+                    parts.push({ functionResponse: { name: msg.toolCall.name, response: { content: msg.toolCall.args.result } } });
+                }
                 return { role: msg.sender === 'user' ? 'user' : 'model', parts };
             });
 
@@ -209,7 +234,7 @@ export const useAppLogic = (language: Language) => {
 
             const config: any = {};
             if (callbacks.isMapEnabled && callbacks.userLocation) {
-                config.tools = [{ googleMaps: {} }];
+                config.tools = [{ googleMaps: {} }, ...tools];
                 config.toolConfig = {
                     retrievalConfig: {
                         latLng: {
@@ -218,9 +243,11 @@ export const useAppLogic = (language: Language) => {
                         }
                     }
                 }
+            } else {
+                 config.tools = tools;
             }
 
-            const stream = await ai.models.generateContentStream({
+            let stream = await ai.models.generateContentStream({
                 model: 'gemini-2.5-flash',
                 contents,
                 config: {
@@ -234,9 +261,62 @@ export const useAppLogic = (language: Language) => {
 
             for await (const chunk of stream) {
                 if (abortController.current?.signal.aborted) break;
-                fullText += chunk.text;
-                finalResponse = chunk;
-                updateBotMessage(botMessage.id, { text: fullText });
+
+                const functionCall = chunk.functionCalls?.[0];
+                if (functionCall) {
+                    updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: functionCall.args, thinking: true } });
+                    
+                    let functionResponse: Part;
+
+                    if (functionCall.name === 'generate_image') {
+                        try {
+                             const imageResponse = await ai.models.generateImages({
+                                model: 'imagen-4.0-generate-001',
+                                prompt: functionCall.args.prompt,
+                                config: { numberOfImages: 1 }
+                            });
+                             const base64ImageBytes = imageResponse.generatedImages?.[0]?.image.imageBytes;
+                             if(base64ImageBytes) {
+                                 const imageUrl = `data:image/png;base64,${base64ImageBytes}`;
+                                 functionResponse = { functionResponse: { name: 'generate_image', response: { content: 'Image generated successfully.', imageUrl } } };
+                             } else {
+                                 functionResponse = { functionResponse: { name: 'generate_image', response: { content: 'Failed to generate image.' } } };
+                             }
+                        } catch (e) {
+                             console.error("Image generation tool error", e);
+                             functionResponse = { functionResponse: { name: 'generate_image', response: { content: 'An error occurred during image generation.' } } };
+                        }
+                    } else {
+                        // Handle other functions here if any
+                        functionResponse = { functionResponse: { name: functionCall.name, response: { content: 'Unknown function' } } };
+                    }
+                    
+                    // FIX: Wrapped the functionResponse Part in a Content object with role 'tool' to match the expected type for the 'contents' array.
+                    const newContents = [...contents, { role: 'model', parts: [{ functionCall }] }, { role: 'tool', parts: [functionResponse] }];
+
+                    // Send the function response back to the model
+                    stream = await ai.models.generateContentStream({
+                        model: 'gemini-2.5-flash',
+                        contents: newContents,
+                         config: {
+                            ...config,
+                            systemInstruction: botSettings.system_instruction
+                        }
+                    });
+                     // Update the message to indicate we're no longer "thinking"
+                     updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: { result: functionResponse.functionResponse.response.content }, thinking: false } });
+
+                     // If the image was generated, attach it to the message immediately
+                     if(functionResponse.functionResponse.response.imageUrl){
+                        updateBotMessage(botMessage.id, { imageUrl: functionResponse.functionResponse.response.imageUrl });
+                     }
+
+                } else {
+                    // FIX: Added nullish coalescing operator to safely handle streaming chunks that might not have a 'text' property.
+                    fullText += chunk.text ?? '';
+                    finalResponse = chunk;
+                    updateBotMessage(botMessage.id, { text: fullText });
+                }
             }
 
             if (abortController.current?.signal.aborted) {
@@ -251,45 +331,10 @@ export const useAppLogic = (language: Language) => {
             if (isNewChat && activeChatId) {
                 generateConversationTitle(activeChatId, [userMessage, { ...botMessage, text: botResponseText }]);
             }
-
-            const imagePromptRegex = /\[GENERATE_IMAGE:\s*(.*?)\]/s;
-            const imagePromptMatch = botResponseText.match(imagePromptRegex);
-
-            if (imagePromptMatch && imagePromptMatch[1]) {
-                const imagePrompt = imagePromptMatch[1].trim();
-                const generatingText = botResponseText.replace(imagePromptRegex, t('generatingImage')).trim();
-                updateBotMessage(botMessage.id, { text: generatingText });
-
-                let finalBotText = botResponseText.replace(imagePromptRegex, '').trim();
-                let imageUrl: string | undefined = undefined;
-
-                try {
-                    const imageResponse = await ai.models.generateImages({
-                        model: 'imagen-4.0-generate-001',
-                        prompt: imagePrompt,
-                        config: { numberOfImages: 1 }
-                    });
-                    
-                    if (imageResponse.generatedImages && imageResponse.generatedImages.length > 0) {
-                         const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
-                         imageUrl = `data:image/png;base64,${base64ImageBytes}`;
-                    }
-                    if (!imageUrl) finalBotText = `${finalBotText}\n\n${t('imageGenerationError')}`.trim();
-                } catch (imageError) {
-                    console.error("Image generation error:", imageError);
-                    finalBotText = `${finalBotText}\n\n${t('imageGenerationError')}`.trim();
-                }
-                
-                updateBotMessage(botMessage.id, { text: finalBotText, imageUrl });
-                if (callbacks.isBotVoiceEnabled && finalBotText) {
-                    updateBotMessage(botMessage.id, { isSpeaking: true });
-                    await callbacks.queueAndPlayTTS(finalBotText, botMessage.id);
-                }
-            } else {
-                if (callbacks.isBotVoiceEnabled && botResponseText) {
-                    updateBotMessage(botMessage.id, { isSpeaking: true });
-                    await callbacks.queueAndPlayTTS(botResponseText, botMessage.id);
-                }
+            
+            if (callbacks.isBotVoiceEnabled && botResponseText) {
+                updateBotMessage(botMessage.id, { isSpeaking: true });
+                await callbacks.queueAndPlayTTS(botResponseText, botMessage.id);
             }
 
         } catch (error: any) {
@@ -323,7 +368,7 @@ export const useAppLogic = (language: Language) => {
 
     return {
         isAppReady, conversations, activeChatId, setActiveChatId, isLoading, faqs,
-        botSettings, startNewChat, handleSendMessage, handleDeleteConversation, handleStopGenerating,
+        botSettings, startNewChat, handleSendMessage, handleDeleteConversation, handleClearChat, handleStopGenerating,
         updateBotMessage, t, handleFeedback
     };
 };

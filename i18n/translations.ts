@@ -40,8 +40,8 @@ export const translations = {
         languageRule: 'IMPORTANT: You must respond ONLY in English. Do not use any other language.',
         locationServicesInstruction: "IMPORTANT RULE for location questions: If a user asks a location-based question (e.g., 'restaurants near me') and you do not have access to their location (because the googleMaps tool is not provided in the request), you MUST NOT answer the question. Instead, you MUST politely inform the user that you need location access to answer and guide them to enable location services in their browser settings and then try again. Do not say you are an AI that cannot access location.",
         voiceCapabilityInstruction: "You are a voice-enabled assistant. When asked about your voice, explain that you are an AI that can speak using the device's text-to-speech technology, which gives you a voice to interact with users.",
-        imageGenerationInstruction: 'When asked to create an image, you MUST respond with ONLY the following special format, and no other text or explanation: [GENERATE_IMAGE: A detailed description of the image to create]. The description inside the tag MUST be in English for best results.',
-        generatingImage: 'Creating your image, please wait a moment...',
+        imageGenerationInstruction: 'To create an image, you MUST use the `generate_image` tool. Do not describe the image in text or refuse the request. You must call the tool with a descriptive prompt.',
+        generatingImage: 'Generating image...',
         imageGenerationError: 'Sorry, there was an error creating the image. Please try another prompt.',
         hotelLinkInstruction: `RULE for providing hotel information:
 1.  You have an official list of Safarnameh24 partner hotels in a JSON array. When a user asks for a hotel, FIRST check this list for an exact match by 'name'.
@@ -57,6 +57,8 @@ export const translations = {
         travelPackageListHeader: '',
         noSearchResults: 'No results found',
         generateTitlePrompt: 'Generate a short, concise title (max 5 words) for the following conversation:',
+        clearChat: 'Clear Chat',
+        clearChatConfirm: 'Are you sure you want to clear all messages in this chat?',
     },
     fa: {
         newChat: 'گفتگوی جدید', chatHistory: 'تاریخچه گفتگو', settings: 'تنظیمات', faq: 'سوالات متداول',
@@ -90,8 +92,8 @@ export const translations = {
         languageRule: 'مهم: شما باید فقط به زبان فارسی پاسخ دهید. از هیچ زبان دیگری استفاده نکنید.',
         locationServicesInstruction: 'قانون مهم برای سوالات مکانی: اگر کاربر سوالی مبتنی بر مکان پرسید (مانند «رستوران‌های نزدیک من») و شما به موقعیت مکانی او دسترسی نداشتید (چون ابزار googleMaps در درخواست ارائه نشده است)، شما نباید به سوال پاسخ دهید. در عوض، باید مودبانه به کاربر اطلاع دهید که برای پاسخ به این سوال به دسترسی موقعیت مکانی نیاز دارید و او را راهنمایی کنید تا خدمات موقعیت مکانی را در تنظیمات مرورگر خود فعال کرده و دوباره تلاش کند. نگویید که شما یک هوش مصنوعی هستید و به موقعیت مکانی دسترسی ندارید.',
         voiceCapabilityInstruction: 'شما یک دستیار صوتی هستید. وقتی در مورد صدای شما سوال پرسیده می‌شود، توضیح دهید که شما یک هوش مصنوعی هستید که با استفاده از فناوری تبدیل متن به گفتار دستگاه صحبت می‌کنید و این به شما صدا می‌دهد تا با کاربران تعامل داشته باشید.',
-        imageGenerationInstruction: 'اگر کاربر از شما خواست تصویری ایجاد کنید، باید از فرمت زیر در پاسخ خود استفاده کنید و هیچ چیز دیگری در پاسخ خود قرار ندهید: [GENERATE_IMAGE: توضیحات دقیق در مورد تصویری که باید ایجاد شود]. توضیحات داخل این تگ برای بهترین نتیجه باید به زبان انگلیسی باشد.',
-        generatingImage: 'در حال ساخت تصویر شما...',
+        imageGenerationInstruction: 'برای ساخت تصویر، شما باید از ابزار `generate_image` استفاده کنید. تصویر را در متن توصیف نکنید یا درخواست را رد نکنید. شما باید ابزار را با یک پرامپت توصیفی فراخوانی کنید.',
+        generatingImage: 'در حال ساخت تصویر...',
         imageGenerationError: 'متاسفانه در ساخت تصویر مشکلی پیش آمد. لطفا دوباره تلاش کنید.',
         hotelLinkInstruction: `قانون ارائه اطلاعات هتل:
 ۱. شما یک لیست رسمی از هتل‌های همکار سفرنامه ۲۴ در قالب آرایه JSON در اختیار دارید. وقتی کاربر نام هتلی را می‌پرسد، ابتدا این لیست را برای یافتن نام دقیق هتل بررسی کنید.
@@ -107,10 +109,28 @@ export const translations = {
         travelPackageListHeader: '',
         noSearchResults: 'نتیجه‌ای یافت نشد',
         generateTitlePrompt: 'یک عنوان کوتاه و مختصر (حداکثر ۵ کلمه) برای گفتگوی زیر ایجاد کن:',
+        clearChat: 'پاک کردن گفتگو',
+        clearChatConfirm: 'آیا از پاک کردن تمام پیام‌های این گفتگو مطمئن هستید؟',
     }
 };
 
 export const changelog: ChangelogEntry[] = [
+    {
+        version: '1.6.0',
+        date: { en: 'November 9, 2025', fa: '۱۸ آبان ۱۴۰۴' },
+        changes: {
+            en: [
+                'Upgraded image generation to use Function Calling for greater reliability.',
+                'Added a "Clear Chat" feature to clear messages from the current conversation.',
+                'Improved UI feedback when the AI is using tools (e.g., "Generating image...").'
+            ],
+            fa: [
+                'قابلیت ساخت تصویر با استفاده از «فراخوانی تابع» برای پایداری بیشتر ارتقا یافت.',
+                'ویژگی «پاک کردن گفتگو» برای حذف پیام‌های گفتگوی فعلی اضافه شد.',
+                'بازخورد رابط کاربری هنگام استفاده هوش مصنوعی از ابزارها بهبود یافت (مثلاً «در حال ساخت تصویر...»).'
+            ]
+        }
+    },
     {
         version: '1.5.0',
         date: { en: 'November 9, 2025', fa: '۱۸ آبان ۱۴۰۴' },

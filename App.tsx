@@ -25,7 +25,7 @@ const App: React.FC = () => {
     const {
         isAppReady, conversations, activeChatId, setActiveChatId, isLoading, faqs,
         botSettings, startNewChat, handleSendMessage, handleDeleteConversation, handleStopGenerating,
-        updateBotMessage, t, handleFeedback
+        updateBotMessage, t, handleFeedback, handleClearChat
     } = useAppLogic(language);
     
     const [userInput, setUserInput] = useState('');
@@ -218,6 +218,12 @@ const App: React.FC = () => {
 
     const filteredConversations = conversations.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
+    const onClearChat = () => {
+        if (activeChatId && window.confirm(t('clearChatConfirm'))) {
+            handleClearChat(activeChatId);
+        }
+    };
+
     return (
         <div className="h-screen bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden" style={{ fontFamily: appFont }}>
             {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden" />}
@@ -277,7 +283,11 @@ const App: React.FC = () => {
             <main className={mainClass}>
                 <header className="flex items-center justify-between p-2 sm:p-4 border-b bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 flex-shrink-0">
                     <div className="w-10 h-10 flex items-center justify-center">
-                        {/* This is a placeholder to balance the header */}
+                        {activeConversation && activeConversation.messages.length > 0 && (
+                            <button onClick={onClearChat} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500" title={t('clearChat')}>
+                                <Icons.Broom />
+                            </button>
+                        )}
                     </div>
                     <div className="flex items-center gap-3">
                         <h1 className="text-lg font-semibold truncate">{t('chatbotTitle')}</h1>
