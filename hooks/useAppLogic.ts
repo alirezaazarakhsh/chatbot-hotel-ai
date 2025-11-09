@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 // FIX: Corrected the import by replacing 'FunctionCallPart' with 'FunctionCall' as it is not an exported member.
 import { GoogleGenAI, GenerateContentResponse, Part, Tool, FunctionDeclaration, Type, FunctionCall } from '@google/genai';
@@ -206,17 +205,45 @@ export const useAppLogic = (language: Language) => {
             };
             const tools: Tool[] = [{ functionDeclarations: [generateImageTool] }];
             
-            const history = conversation.messages.map(msg => {
-                const parts: Part[] = [];
-                if (msg.imageUrl) {
-                    const inlineDataPart = dataUrlToInlineData(msg.imageUrl);
-                    if (inlineDataPart) parts.push(inlineDataPart);
+            const history = conversation.messages.flatMap((msg): { role: string; parts: Part[] }[] => {
+                const role = msg.sender === 'user' ? 'user' : 'model';
+            
+                if (role === 'user') {
+                    const userParts: Part[] = [];
+                    if (msg.imageUrl) {
+                        const inlineDataPart = dataUrlToInlineData(msg.imageUrl);
+                        if (inlineDataPart) userParts.push(inlineDataPart);
+                    }
+                    if (msg.text) {
+                        userParts.push({ text: msg.text });
+                    }
+                    return userParts.length > 0 ? [{ role, parts: userParts }] : [];
                 }
-                if (msg.text) parts.push({ text: msg.text });
-                 if (msg.toolCall && !msg.toolCall.thinking) {
-                    parts.push({ functionResponse: { name: msg.toolCall.name, response: { content: msg.toolCall.args.result } } });
+                
+                // Model turn
+                const modelTurns: { role: string; parts: Part[] }[] = [];
+                
+                if (msg.toolCall && !msg.toolCall.thinking && msg.toolCall.result) {
+                    modelTurns.push({
+                        role: 'model',
+                        parts: [{ functionCall: { name: msg.toolCall.name, args: msg.toolCall.args } }]
+                    });
+                    modelTurns.push({
+                        role: 'tool',
+                        parts: [{ functionResponse: { name: msg.toolCall.name, response: msg.toolCall.result } }]
+                    });
                 }
-                return { role: msg.sender === 'user' ? 'user' : 'model', parts };
+            
+                const finalTextParts: Part[] = [];
+                if (msg.text) {
+                    finalTextParts.push({ text: msg.text });
+                }
+            
+                if (finalTextParts.length > 0) {
+                    modelTurns.push({ role: 'model', parts: finalTextParts });
+                }
+                
+                return modelTurns;
             });
 
             const userParts: Part[] = [];
@@ -234,19 +261,8 @@ export const useAppLogic = (language: Language) => {
             const contents = [...history, { role: 'user', parts: userParts }];
 
             const config: any = {};
-            if (callbacks.isMapEnabled && callbacks.userLocation) {
-                config.tools = [{ googleMaps: {} }, ...tools];
-                config.toolConfig = {
-                    retrievalConfig: {
-                        latLng: {
-                            latitude: callbacks.userLocation.lat,
-                            longitude: callbacks.userLocation.lng
-                        }
-                    }
-                }
-            } else {
-                 config.tools = tools;
-            }
+            // As per user request, temporarily disable Google Maps integration to troubleshoot network issues.
+            config.tools = tools;
 
             let stream = await ai.models.generateContentStream({
                 model: 'gemini-2.5-flash',
@@ -309,7 +325,7 @@ export const useAppLogic = (language: Language) => {
                     const toolResponsePayload = functionResponse.functionResponse.response as { content: string, imageUrl?: string };
 
                      // Update the message to indicate we're no longer "thinking"
-                     updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: { result: toolResponsePayload.content }, thinking: false } });
+                     updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: functionCall.args, result: toolResponsePayload, thinking: false } });
 
                      // If the image was generated, attach it to the message immediately
                      if(toolResponsePayload.imageUrl){

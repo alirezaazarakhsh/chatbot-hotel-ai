@@ -8,7 +8,7 @@ export interface Message {
     id: string; sender: 'user' | 'bot'; text: string; audioUrl?: string;
     imageUrl?: string; isSpeaking?: boolean; timestamp?: string; isCancelled?: boolean;
     feedback?: 'like' | 'dislike' | null; groundingChunks?: GroundingChunk[];
-    toolCall?: { name: string; args: any; thinking: boolean; };
+    toolCall?: { name: string; args: any; thinking: boolean; result?: any; };
 }
 export interface Conversation { id: string; title: string; messages: Message[]; lastUpdated: number; }
 export interface FAQ { id: number; question: string; answer: string; }
