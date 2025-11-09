@@ -288,7 +288,7 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="h-screen bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden" style={{ fontFamily: appFont }}>
+        <div className="h-screen bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden">
             {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden" />}
             <aside className={`flex flex-col bg-neutral-50 dark:bg-neutral-900 transition-transform duration-300 ease-in-out ${sidebarClass}`}>
                 <div className="p-4 flex-grow flex flex-col min-h-0">
