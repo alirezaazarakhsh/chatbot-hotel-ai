@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -23,7 +24,7 @@ const App: React.FC = () => {
     const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
 
     const {
-        isAppReady, conversations, activeChatId, setActiveChatId, isLoading, faqs,
+        isAppReady, conversations, setConversations, activeChatId, setActiveChatId, isLoading, faqs,
         botSettings, startNewChat, handleSendMessage, handleDeleteConversation, handleStopGenerating,
         updateBotMessage, t, handleFeedback, handleClearChat
     } = useAppLogic(language);

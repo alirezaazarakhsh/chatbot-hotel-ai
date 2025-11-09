@@ -59,6 +59,9 @@ export const translations = {
         generateTitlePrompt: 'Generate a short, concise title (max 5 words) for the following conversation:',
         clearChat: 'Clear Chat',
         clearChatConfirm: 'Are you sure you want to clear all messages in this chat?',
+        edit: 'Edit',
+        cancel: 'Cancel',
+        saveChanges: 'Save',
     },
     fa: {
         newChat: 'گفتگوی جدید', chatHistory: 'تاریخچه گفتگو', settings: 'تنظیمات', faq: 'سوالات متداول',
@@ -111,6 +114,9 @@ export const translations = {
         generateTitlePrompt: 'یک عنوان کوتاه و مختصر (حداکثر ۵ کلمه) برای گفتگوی زیر ایجاد کن:',
         clearChat: 'پاک کردن گفتگو',
         clearChatConfirm: 'آیا از پاک کردن تمام پیام‌های این گفتگو مطمئن هستید؟',
+        edit: 'ویرایش',
+        cancel: 'انصراف',
+        saveChanges: 'ذخیره',
     }
 };
 

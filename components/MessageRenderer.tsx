@@ -15,9 +15,24 @@ export const MessageRenderer: React.FC<{
     onFeedback: (messageId: string, feedback: 'like' | 'dislike') => void;
     t: (key: keyof typeof translations.en) => string;
     language: Language;
-}> = ({ message, isLoading, isLastMessage, onCopy, copiedMessageId, onFeedback, t, language }) => {
+    editingMessageId: string | null;
+    setEditingMessageId: (id: string | null) => void;
+    onEditSubmit: (messageId: string, newText: string) => void;
+}> = ({ message, isLoading, isLastMessage, onCopy, copiedMessageId, onFeedback, t, language, editingMessageId, setEditingMessageId, onEditSubmit }) => {
     const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl, feedback, groundingChunks, toolCall } = message;
     const [location, setLocation] = useState<string | null>(null);
+    const [editText, setEditText] = useState(text);
+
+    const isEditing = editingMessageId === id;
+
+    const handleSaveEdit = () => {
+        onEditSubmit(id, editText);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingMessageId(null);
+        setEditText(text); // Reset text on cancel
+    };
 
     useEffect(() => {
         if (sender === 'bot' && text) {
@@ -71,61 +86,92 @@ export const MessageRenderer: React.FC<{
     
     return (
         <div className="group">
-             {imageUrl && (
+             {imageUrl && !isEditing && (
                 <div className="mb-2 p-1 rounded-lg border-2 border-neutral-200 dark:border-neutral-700 inline-block bg-neutral-100 dark:bg-neutral-800">
                     <img src={imageUrl} alt={t('imagePreview')} className="rounded-md max-w-full h-auto" />
                 </div>
              )}
-             {audioUrl && <CustomAudioPlayer audioUrl={audioUrl} timestamp={timestamp || ''} sender={sender}/>}
+             {audioUrl && !isEditing && <CustomAudioPlayer audioUrl={audioUrl} timestamp={timestamp || ''} sender={sender}/>}
              {isSpeaking && <div className="flex items-center space-x-2 rtl:space-x-reverse"><Icons.Speaking /></div>}
-             {text && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(text)}</p>{location && <MapPreview location={location} t={t} />}</div>)}
              
-             {groundingChunks && groundingChunks.length > 0 && (
-                 <div className="mt-3 pt-2 border-t border-neutral-200 dark:border-neutral-700/60">
-                     <h4 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 mb-1.5">{t('sources')}</h4>
-                     <ul className="text-xs space-y-1">
-                         {groundingChunks.map((chunk, index) => {
-                             const source = chunk.web || chunk.maps;
-                             if (!source || !source.uri) return null;
-                             return (
-                                 <li key={index} className="flex items-start">
-                                     <span className="me-2 text-neutral-400">&#8226;</span>
-                                     <a href={source.uri} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:underline break-all">
-                                         {source.title || source.uri}
-                                     </a>
-                                 </li>
-                             );
-                         })}
-                     </ul>
+             {isEditing ? (
+                 <div className="w-full">
+                     <textarea
+                         value={editText}
+                         onChange={(e) => setEditText(e.target.value)}
+                         className="w-full p-2 border rounded-md bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 focus:outline-none focus:ring-1 focus:ring-[#F30F26] resize-y text-neutral-900 dark:text-neutral-100"
+                         rows={Math.min(10, Math.max(3, editText.split('\n').length))}
+                         autoFocus
+                     />
+                     <div className={`flex gap-2 mt-2 ${language === 'fa' ? 'justify-start' : 'justify-end'}`}>
+                         <button onClick={handleCancelEdit} className="px-3 py-1 rounded-md text-sm hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-700 dark:text-neutral-200">{t('cancel')}</button>
+                         <button onClick={handleSaveEdit} className="px-3 py-1 rounded-md text-sm bg-[#F30F26] text-white hover:bg-red-700">{t('saveChanges')}</button>
+                     </div>
                  </div>
-             )}
+             ) : (
+                <>
+                    {text && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(text)}</p>{location && <MapPreview location={location} t={t} />}</div>)}
+                    {groundingChunks && groundingChunks.length > 0 && (
+                         <div className="mt-3 pt-2 border-t border-neutral-200 dark:border-neutral-700/60">
+                             <h4 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 mb-1.5">{t('sources')}</h4>
+                             <ul className="text-xs space-y-1">
+                                 {groundingChunks.map((chunk, index) => {
+                                     const source = chunk.web || chunk.maps;
+                                     if (!source || !source.uri) return null;
+                                     return (
+                                         <li key={index} className="flex items-start">
+                                             <span className="me-2 text-neutral-400">&#8226;</span>
+                                             <a href={source.uri} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:underline break-all">
+                                                 {source.title || source.uri}
+                                             </a>
+                                         </li>
+                                     );
+                                 })}
+                             </ul>
+                         </div>
+                     )}
 
-             {sender === 'bot' && text && !isSpeaking && !(isLastMessage && isLoading) && (
-                <div className={`flex items-center mt-2 opacity-0 group-hover:opacity-100 transition-opacity ${language === 'fa' ? 'justify-end' : 'justify-start'}`}>
-                    <div className="flex items-center gap-0.5 p-1 rounded-full bg-white dark:bg-neutral-800/80 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700/60 shadow-sm">
-                        <button onClick={() => onCopy(text, id)} className="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400 transition-colors" title={copiedMessageId === id ? t('copied') : t('copy')}>
-                            {copiedMessageId === id ? <Icons.Check /> : <Icons.Copy />}
-                        </button>
-                        <div className="w-px h-4 bg-neutral-200 dark:bg-neutral-700"></div>
-                        <button
-                            onClick={() => onFeedback(id, 'like')}
-                            className={`p-1.5 rounded-full transition-colors ${feedback === 'like' ? 'text-green-500 bg-green-500/10' : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-green-500'}`}
-                            aria-label={t('likeResponse')}
-                            title={t('likeResponse')}
-                        >
-                            <Icons.ThumbsUp />
-                        </button>
-                        <button
-                            onClick={() => onFeedback(id, 'dislike')}
-                            className={`p-1.5 rounded-full transition-colors ${feedback === 'dislike' ? 'text-red-500 bg-red-500/10' : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-red-500'}`}
-                            aria-label={t('dislikeResponse')}
-                            title={t('dislikeResponse')}
-                        >
-                            <Icons.ThumbsDown />
-                        </button>
-                    </div>
-                </div>
-            )}
+                     {sender === 'bot' && text && !isSpeaking && !(isLastMessage && isLoading) && (
+                        <div className={`flex items-center mt-2 opacity-0 group-hover:opacity-100 transition-opacity ${language === 'fa' ? 'justify-end' : 'justify-start'}`}>
+                            <div className="flex items-center gap-0.5 p-1 rounded-full bg-white dark:bg-neutral-800/80 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700/60 shadow-sm">
+                                <button onClick={() => onCopy(text, id)} className="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400 transition-colors" title={copiedMessageId === id ? t('copied') : t('copy')}>
+                                    {copiedMessageId === id ? <Icons.Check /> : <Icons.Copy />}
+                                </button>
+                                <div className="w-px h-4 bg-neutral-200 dark:bg-neutral-700"></div>
+                                <button
+                                    onClick={() => onFeedback(id, 'like')}
+                                    className={`p-1.5 rounded-full transition-colors ${feedback === 'like' ? 'text-green-500 bg-green-500/10' : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-green-500'}`}
+                                    aria-label={t('likeResponse')}
+                                    title={t('likeResponse')}
+                                >
+                                    <Icons.ThumbsUp />
+                                </button>
+                                <button
+                                    onClick={() => onFeedback(id, 'dislike')}
+                                    className={`p-1.5 rounded-full transition-colors ${feedback === 'dislike' ? 'text-red-500 bg-red-500/10' : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-red-500'}`}
+                                    aria-label={t('dislikeResponse')}
+                                    title={t('dislikeResponse')}
+                                >
+                                    <Icons.ThumbsDown />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {sender === 'user' && text && (
+                        <div className={`flex items-center mt-2 opacity-0 group-hover:opacity-100 transition-opacity ${language === 'fa' ? 'justify-end' : 'justify-start'}`}>
+                            <div className="flex items-center gap-0.5 p-1 rounded-full bg-neutral-700/80 backdrop-blur-sm border border-neutral-600 shadow-sm">
+                                <button onClick={() => { setEditingMessageId(id); setEditText(text); }} className="p-1.5 rounded-full hover:bg-neutral-600 text-neutral-300 transition-colors" title={t('edit')}>
+                                    <Icons.Edit />
+                                </button>
+                                <div className="w-px h-4 bg-neutral-600"></div>
+                                <button onClick={() => onCopy(text, id)} className="p-1.5 rounded-full hover:bg-neutral-600 text-neutral-300 transition-colors" title={copiedMessageId === id ? t('copied') : t('copy')}>
+                                    {copiedMessageId === id ? <Icons.Check /> : <Icons.Copy />}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>
+             )}
         </div>
     );
 };
