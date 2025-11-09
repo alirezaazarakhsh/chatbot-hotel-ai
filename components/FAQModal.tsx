@@ -2,6 +2,8 @@
 
 
 
+
+
 import React from 'react';
 import { FAQ, Language } from '../types';
 import { Icons } from './Icons';
@@ -11,7 +13,7 @@ export const FAQModal: React.FC<{ isOpen: boolean; onClose: () => void; faqs: FA
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white dark:bg-[#1C1C1C] border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl w-full max-w-sm flex flex-col max-h-[calc(100vh-4rem)]" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-[#1C1C1C] border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl w-full max-w-lg flex flex-col max-h-[calc(100vh-4rem)]" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center p-4 border-b border-neutral-200 dark:border-neutral-800 flex-shrink-0">
                     <h2 className="text-xl font-bold text-black dark:text-white">{t('faqTitle')}</h2>
                     <button onClick={onClose} className="p-1.5 text-neutral-600 dark:text-neutral-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700"><Icons.Close /></button>
@@ -43,7 +45,7 @@ export const UpdateModal: React.FC<{
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-[#1C1C1C] border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl w-full max-w-sm flex flex-col max-h-[calc(100vh-4rem)]" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#1C1C1C] border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl w-full max-w-lg flex flex-col max-h-[calc(100vh-4rem)]" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center p-4 border-b border-neutral-200 dark:border-neutral-800 flex-shrink-0">
           <h2 className="text-xl font-bold text-black dark:text-white">{t('updates')}</h2>
           <button onClick={onClose} className="p-1.5 text-neutral-600 dark:text-neutral-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700"><Icons.Close /></button>

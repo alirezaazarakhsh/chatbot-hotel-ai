@@ -74,13 +74,30 @@ export const MessageRenderer: React.FC<{
 
     const parseTextToComponents = (inputText: string): React.ReactNode[] => {
         const cleanText = inputText.replace(/\(مکان:\s*([^)]+)\)/g, '').replace(/\(Location:\s*([^)]+)\)/g, '').trim();
-        const regex = /https?:\/\/[^\s.,;!?()]+/g; let lastIndex = 0; const components: React.ReactNode[] = []; let match;
+        const regex = /\/?https?:\/\/[^\s.,;!?()]+/g; // Match URLs, optionally with a preceding slash
+        let lastIndex = 0;
+        const components: React.ReactNode[] = [];
+        let match;
+
         while ((match = regex.exec(cleanText)) !== null) {
-            if (match.index > lastIndex) components.push(cleanText.substring(lastIndex, match.index));
-            components.push(<a key={match.index} href={match[0]} target="_blank" rel="noopener noreferrer" className="text-[#F30F26] hover:underline">{match[0]}</a>);
+            if (match.index > lastIndex) {
+                components.push(cleanText.substring(lastIndex, match.index));
+            }
+            const fullMatch = match[0];
+            // Clean the URL for the href attribute by removing any leading slash.
+            const href = fullMatch.startsWith('/') ? fullMatch.substring(1) : fullMatch;
+
+            components.push(
+                <a key={match.index} href={href} target="_blank" rel="noopener noreferrer" className="text-[#F30F26] hover:underline break-all">
+                    {fullMatch}
+                </a>
+            );
             lastIndex = regex.lastIndex;
         }
-        if (lastIndex < cleanText.length) components.push(cleanText.substring(lastIndex));
+
+        if (lastIndex < cleanText.length) {
+            components.push(cleanText.substring(lastIndex));
+        }
         return components;
     };
     

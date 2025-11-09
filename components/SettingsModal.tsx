@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { BotVoice, Language, Theme } from '../types';
 import { translations } from '../i18n/translations';
@@ -30,7 +31,7 @@ export const SettingsModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-40 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white dark:bg-[#1C1C1C] border dark:border-neutral-700 rounded-xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-[#1C1C1C] border dark:border-neutral-700 rounded-xl shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center p-4 border-b dark:border-neutral-800">
                     <h2 className="text-xl font-bold text-black dark:text-white">{t('settingsTitle')}</h2>
                     <button onClick={onClose} className="p-1.5 text-neutral-500 dark:text-neutral-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700"><Icons.Close /></button>

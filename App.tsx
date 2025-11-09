@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -22,8 +24,9 @@ const App: React.FC = () => {
     });
     const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
 
+    // FIX: Destructure `setConversations` to make it available in the component.
     const {
-        isAppReady, conversations, activeChatId, setActiveChatId, isLoading, faqs,
+        isAppReady, conversations, setConversations, activeChatId, setActiveChatId, isLoading, faqs,
         botSettings, startNewChat, handleSendMessage, handleDeleteConversation, handleStopGenerating,
         updateBotMessage, t, handleFeedback, handleClearChat
     } = useAppLogic(language);
@@ -391,8 +394,8 @@ const App: React.FC = () => {
                     <div className="relative">
                          <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden"/>
                         <textarea value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} placeholder={t('messagePlaceholder')} className={`w-full py-3 text-base bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none ${language === 'fa' ? 'pr-12 pl-20 sm:pl-24' : 'pl-12 pr-20 sm:pr-24'}`} rows={1} disabled={isLoading} />
-                         <div className={`absolute top-1/2 -translate-y-1/2 ${language === 'fa' ? 'right-2 sm:right-3' : 'left-2 sm:left-3'}`}><button onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!imageToSend} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50" title={t('sendImage')}><Icons.Paperclip /></button></div>
-                         <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 ${language === 'fa' ? 'left-2 sm:left-3' : 'right-2 sm:right-3'}`}>
+                         <div className={`absolute inset-y-0 flex items-center ${language === 'fa' ? 'right-2 sm:right-3' : 'left-2 sm:left-3'}`}><button onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!imageToSend} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50" title={t('sendImage')}><Icons.Paperclip /></button></div>
+                         <div className={`absolute inset-y-0 flex items-center gap-1 ${language === 'fa' ? 'left-2 sm:left-3' : 'right-2 sm:right-3'}`}>
                             {isLoading ? (<button onClick={handleStopGenerating} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700" title={t('stopGenerating')}><Icons.StopGenerating /></button>)
                              : (
                                 <>

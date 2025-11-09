@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 // FIX: Corrected the import by replacing 'FunctionCallPart' with 'FunctionCall' as it is not an exported member.
 import { GoogleGenAI, GenerateContentResponse, Part, Tool, FunctionDeclaration, Type, FunctionCall } from '@google/genai';
@@ -272,7 +273,8 @@ export const useAppLogic = (language: Language) => {
                         try {
                              const imageResponse = await ai.models.generateImages({
                                 model: 'imagen-4.0-generate-001',
-                                prompt: functionCall.args.prompt,
+                                // FIX: Explicitly convert the prompt argument to a string to prevent "Type 'unknown' is not assignable to type 'string'" error.
+                                prompt: String(functionCall.args.prompt),
                                 config: { numberOfImages: 1 }
                             });
                              const base64ImageBytes = imageResponse.generatedImages?.[0]?.image.imageBytes;
@@ -369,8 +371,9 @@ export const useAppLogic = (language: Language) => {
         }));
     }, [activeChatId, setConversations]);
 
+    // FIX: Export `setConversations` to allow parent components to modify the conversations state.
     return {
-        isAppReady, conversations, activeChatId, setActiveChatId, isLoading, faqs,
+        isAppReady, conversations, setConversations, activeChatId, setActiveChatId, isLoading, faqs,
         botSettings, startNewChat, handleSendMessage, handleDeleteConversation, handleClearChat, handleStopGenerating,
         updateBotMessage, t, handleFeedback
     };
