@@ -204,7 +204,7 @@ export const useAppLogic = (language: Language) => {
                     required: ['prompt']
                 }
             };
-            const baseTools: Tool[] = [{ functionDeclarations: [generateImageTool] }];
+            const tools: Tool[] = [{ functionDeclarations: [generateImageTool] }];
             
             const history = conversation.messages.map(msg => {
                 const parts: Part[] = [];
@@ -232,11 +232,15 @@ export const useAppLogic = (language: Language) => {
             }
 
             const contents = [...history, { role: 'user', parts: userParts }];
-            
-            const config: any = {};
 
-            // Conditionally set tools. googleMaps cannot be used with other tools like function declarations.
-            if (callbacks.isMapEnabled) {
+            const config: any = {};
+            const userText = input.text || '';
+            const isImageGenerationRequest = /image|draw|create|generate|بساز|بکش|طراحی کن/i.test(userText);
+
+            // Per Gemini API guidelines, `googleMaps` and `functionDeclarations` tools cannot be used in the same request.
+            // This logic checks if the user is asking for an image. If so, it provides the image generation tool.
+            // Otherwise, it provides the Google Maps tool if map features are enabled in the app settings.
+            if (callbacks.isMapEnabled && !isImageGenerationRequest) {
                 config.tools = [{ googleMaps: {} }];
                 if (callbacks.userLocation) {
                     config.toolConfig = {
@@ -249,7 +253,7 @@ export const useAppLogic = (language: Language) => {
                     };
                 }
             } else {
-                config.tools = baseTools;
+                config.tools = tools;
             }
 
             let stream = await ai.models.generateContentStream({
