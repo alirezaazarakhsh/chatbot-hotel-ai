@@ -1,4 +1,9 @@
 
+
+
+
+
+
 import React from 'react';
 import { FAQ, Language } from '../types';
 import { Icons } from './Icons';
@@ -46,7 +51,6 @@ export const UpdateModal: React.FC<{
           <button onClick={onClose} className="p-1.5 text-neutral-600 dark:text-neutral-400 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700"><Icons.Close /></button>
         </div>
         <div className="overflow-y-auto p-6 space-y-6">
-          <p className="text-neutral-700 dark:text-neutral-300">{t('updatesMessage')}</p>
           {changelog.map(entry => (
             <div key={entry.version}>
               <div className="flex items-baseline gap-3">

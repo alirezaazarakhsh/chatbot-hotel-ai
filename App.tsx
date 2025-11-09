@@ -1,4 +1,7 @@
 
+
+
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -12,7 +15,6 @@ import { FAQModal, UpdateModal } from './components/FAQModal';
 import { MessageRenderer } from './components/MessageRenderer';
 import { changelog } from './i18n/translations';
 import { audioUtils } from './utils/audioUtils';
-import { LocationPermissionModal } from './components/LocationPermissionModal';
 
 const packageVersion = process.env.APP_VERSION;
 
@@ -37,7 +39,6 @@ const App: React.FC = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isFAQOpen, setIsFAQOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-    const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     const [lastSeenVersion, setLastSeenVersion] = useLocalStorage('lastSeenVersion', '0.0.0');
     const [isBotVoiceEnabled, setIsBotVoiceEnabled] = useLocalStorage('isBotVoiceEnabled', true);
     const [botVoice, setBotVoice] = useLocalStorage<BotVoice>('botVoice', 'Kore');
@@ -230,7 +231,7 @@ const App: React.FC = () => {
             onSendMessage(promptForLocation);
             setPromptForLocation(null);
         }
-    }, [promptForLocation, userLocation]);
+    }, [promptForLocation, userLocation, onSendMessage]);
 
     const handleLocationPrompt = (prompt: string) => {
         if (!isMapEnabled) {
@@ -248,7 +249,11 @@ const App: React.FC = () => {
                 setPromptForLocation(prompt);
             },
             (error) => {
-                setIsLocationModalOpen(true);
+                if (error.code === error.PERMISSION_DENIED) {
+                    alert(t('locationPermissionDenied'));
+                } else {
+                    alert(t('locationError'));
+                }
             }
         );
     };
@@ -383,7 +388,6 @@ const App: React.FC = () => {
                                             editingMessageId={editingMessageId}
                                             setEditingMessageId={setEditingMessageId}
                                             onEditSubmit={handleEditSubmit}
-                                            botSettings={botSettings}
                                         />
                                     </div>
                                 </div>
@@ -443,7 +447,6 @@ const App: React.FC = () => {
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} isBotVoiceEnabled={isBotVoiceEnabled} setIsBotVoiceEnabled={setIsBotVoiceEnabled} botVoice={botVoice} setBotVoice={setBotVoice} appFont={appFont} setAppFont={setAppFont} isMapEnabled={isMapEnabled} setIsMapEnabled={setIsMapEnabled} language={language} setLanguage={setLanguage} theme={theme} setTheme={setTheme} t={t} />
             <FAQModal isOpen={isFAQOpen} onClose={() => setIsFAQOpen(false)} faqs={faqs} t={t}/>
             <UpdateModal isOpen={isUpdateModalOpen} onClose={() => setIsUpdateModalOpen(false)} changelog={changelog} language={language} t={t} />
-            <LocationPermissionModal isOpen={isLocationModalOpen} onClose={() => setIsLocationModalOpen(false)} t={t} />
         </div>
     );
 };

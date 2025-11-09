@@ -234,26 +234,18 @@ export const useAppLogic = (language: Language) => {
             const contents = [...history, { role: 'user', parts: userParts }];
 
             const config: any = {};
-            const userText = input.text || '';
-            const isImageGenerationRequest = /image|draw|create|generate|بساز|بکش|طراحی کن/i.test(userText);
-
-            // Per Gemini API guidelines, `googleMaps` and `functionDeclarations` tools cannot be used in the same request.
-            // This logic checks if the user is asking for an image. If so, it provides the image generation tool.
-            // Otherwise, it provides the Google Maps tool if map features are enabled in the app settings.
-            if (callbacks.isMapEnabled && !isImageGenerationRequest) {
-                config.tools = [{ googleMaps: {} }];
-                if (callbacks.userLocation) {
-                    config.toolConfig = {
-                        retrievalConfig: {
-                            latLng: {
-                                latitude: callbacks.userLocation.lat,
-                                longitude: callbacks.userLocation.lng
-                            }
+            if (callbacks.isMapEnabled && callbacks.userLocation) {
+                config.tools = [{ googleMaps: {} }, ...tools];
+                config.toolConfig = {
+                    retrievalConfig: {
+                        latLng: {
+                            latitude: callbacks.userLocation.lat,
+                            longitude: callbacks.userLocation.lng
                         }
-                    };
+                    }
                 }
             } else {
-                config.tools = tools;
+                 config.tools = tools;
             }
 
             let stream = await ai.models.generateContentStream({
