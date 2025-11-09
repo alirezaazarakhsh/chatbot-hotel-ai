@@ -102,7 +102,7 @@ export const MessageRenderer: React.FC<{
     };
     
     return (
-        <div className="group">
+        <div>
              {imageUrl && !isEditing && (
                 <div className="mb-2 p-1 rounded-lg border-2 border-neutral-200 dark:border-neutral-700 inline-block bg-neutral-100 dark:bg-neutral-800">
                     <img src={imageUrl} alt={t('imagePreview')} className="rounded-md max-w-full h-auto" />
@@ -127,7 +127,7 @@ export const MessageRenderer: React.FC<{
                  </div>
              ) : (
                 <>
-                    {text && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(text)}</p>{location && <MapPreview location={location} t={t} />}</div>)}
+                    {text && !audioUrl && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(text)}</p>{location && <MapPreview location={location} t={t} />}</div>)}
                     {groundingChunks && groundingChunks.length > 0 && (
                          <div className="mt-3 pt-2 border-t border-neutral-200 dark:border-neutral-700/60">
                              <h4 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 mb-1.5">{t('sources')}</h4>
@@ -149,7 +149,7 @@ export const MessageRenderer: React.FC<{
                      )}
 
                      {sender === 'bot' && text && !isSpeaking && !(isLastMessage && isLoading) && (
-                        <div className={`flex items-center mt-2 opacity-0 group-hover:opacity-100 transition-opacity ${language === 'fa' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`flex items-center mt-2 transition-opacity ${language === 'fa' ? 'justify-end' : 'justify-start'}`}>
                             <div className="flex items-center gap-0.5 p-1 rounded-full bg-white dark:bg-neutral-800/80 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700/60 shadow-sm">
                                 <button onClick={() => onCopy(text, id)} className="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400 transition-colors" title={copiedMessageId === id ? t('copied') : t('copy')}>
                                     {copiedMessageId === id ? <Icons.Check /> : <Icons.Copy />}
@@ -174,8 +174,8 @@ export const MessageRenderer: React.FC<{
                             </div>
                         </div>
                     )}
-                    {sender === 'user' && text && (
-                        <div className={`flex items-center mt-2 opacity-0 group-hover:opacity-100 transition-opacity ${language === 'fa' ? 'justify-end' : 'justify-start'}`}>
+                    {sender === 'user' && text && !audioUrl && (
+                        <div className={`flex items-center mt-2 transition-opacity ${language === 'fa' ? 'justify-end' : 'justify-start'}`}>
                             <div className="flex items-center gap-0.5 p-1 rounded-full bg-neutral-700/80 backdrop-blur-sm border border-neutral-600 shadow-sm">
                                 <button onClick={() => { setEditingMessageId(id); setEditText(text); }} className="p-1.5 rounded-full hover:bg-neutral-600 text-neutral-300 transition-colors" title={t('edit')}>
                                     <Icons.Edit />
