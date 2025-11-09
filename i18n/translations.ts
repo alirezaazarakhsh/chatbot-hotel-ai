@@ -68,6 +68,7 @@ export const translations = {
         locationModalTitle: 'Location Access Required',
         locationModalBody: "To find what's nearby, this app needs access to your location. Please enable location permissions for this site in your browser's settings and try again.",
         locationModalClose: 'OK',
+        updatesMessage: 'We are constantly working to improve the chat experience. Here are the latest updates:',
     },
     fa: {
         newChat: 'گفتگوی جدید', chatHistory: 'تاریخچه گفتگو', settings: 'تنظیمات', faq: 'سوالات متداول',
@@ -129,6 +130,7 @@ export const translations = {
         locationModalTitle: 'نیاز به دسترسی به موقعیت مکانی',
         locationModalBody: 'برای یافتن مکان‌های نزدیک، این برنامه به موقعیت مکانی شما نیاز دارد. لطفاً دسترسی به موقعیت مکانی را برای این سایت در تنظیمات مرورگر خود فعال کرده و دوباره تلاش کنید.',
         locationModalClose: 'باشه',
+        updatesMessage: 'ما به طور مداوم در حال بهبود تجربه چت هستیم. در اینجا آخرین بروزرسانی‌ها آمده است:',
     }
 };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Message, Language } from '../types';
+import { Message, Language, BotSettings } from '../types';
 import { translations } from '../i18n/translations';
 import { CustomAudioPlayer } from './CustomAudioPlayer';
 import { MapPreview } from './MapPreview';
@@ -18,9 +18,10 @@ export const MessageRenderer: React.FC<{
     editingMessageId: string | null;
     setEditingMessageId: (id: string | null) => void;
     onEditSubmit: (messageId: string, newText: string) => void;
-}> = ({ message, isLoading, isLastMessage, onCopy, copiedMessageId, onFeedback, t, language, editingMessageId, setEditingMessageId, onEditSubmit }) => {
+    botSettings: BotSettings;
+}> = ({ message, isLoading, isLastMessage, onCopy, copiedMessageId, onFeedback, t, language, editingMessageId, setEditingMessageId, onEditSubmit, botSettings }) => {
     const { id, text, audioUrl, sender, isSpeaking, timestamp, imageUrl, feedback, groundingChunks, toolCall } = message;
-    const [location, setLocation] = useState<string | null>(null);
+    const [mapInfo, setMapInfo] = useState<{ location: string; title?: string; } | null>(null);
     const [editText, setEditText] = useState(text);
 
     const isEditing = editingMessageId === id;
@@ -36,12 +37,28 @@ export const MessageRenderer: React.FC<{
 
     useEffect(() => {
         if (sender === 'bot' && text) {
+            // Priority 1: Generic location from text e.g., (Location: 35.7,51.4)
             const locationMatch = text.match(/\(مکان:\s*([^)]+)\)/) || text.match(/\(Location:\s*([^)]+)\)/);
-            setLocation(locationMatch ? locationMatch[1].trim() : null);
-        } else {
-            setLocation(null);
+            if (locationMatch) {
+                setMapInfo({ location: locationMatch[1].trim() });
+                return;
+            }
+
+            // Priority 2: Hotel location from URL match if lat/lng are available
+            if (botSettings?.hotel_links) {
+                const foundHotel = botSettings.hotel_links.find(hotel => text.includes(hotel.url) && hotel.lat && hotel.lng);
+                if (foundHotel) {
+                    setMapInfo({
+                        location: `${foundHotel.lat},${foundHotel.lng}`,
+                        title: foundHotel.name
+                    });
+                    return;
+                }
+            }
         }
-    }, [text, sender]);
+        // Reset if no conditions met
+        setMapInfo(null);
+    }, [text, sender, botSettings]);
 
     if (isLoading && isLastMessage && sender === 'bot' && !text && !imageUrl && !audioUrl && !toolCall) {
         return (
@@ -100,6 +117,9 @@ export const MessageRenderer: React.FC<{
         }
         return components;
     };
+
+    // Filter out map-based grounding chunks, only show web sources.
+    const webGroundingChunks = groundingChunks?.filter(chunk => chunk.web && chunk.web.uri) || [];
     
     return (
         <div>
@@ -127,13 +147,13 @@ export const MessageRenderer: React.FC<{
                  </div>
              ) : (
                 <>
-                    {text && !audioUrl && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(text)}</p>{location && <MapPreview location={location} t={t} />}</div>)}
-                    {groundingChunks && groundingChunks.length > 0 && (
+                    {text && !audioUrl && (<div><p className="whitespace-pre-wrap">{parseTextToComponents(text)}</p>{mapInfo && <MapPreview location={mapInfo.location} title={mapInfo.title} t={t} />}</div>)}
+                    {webGroundingChunks.length > 0 && (
                          <div className="mt-3 pt-2 border-t border-neutral-200 dark:border-neutral-700/60">
                              <h4 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 mb-1.5">{t('sources')}</h4>
                              <ul className="text-xs space-y-1">
-                                 {groundingChunks.map((chunk, index) => {
-                                     const source = chunk.web || chunk.maps;
+                                 {webGroundingChunks.map((chunk, index) => {
+                                     const source = chunk.web!;
                                      if (!source || !source.uri) return null;
                                      return (
                                          <li key={index} className="flex items-start">

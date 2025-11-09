@@ -383,6 +383,7 @@ const App: React.FC = () => {
                                             editingMessageId={editingMessageId}
                                             setEditingMessageId={setEditingMessageId}
                                             onEditSubmit={handleEditSubmit}
+                                            botSettings={botSettings}
                                         />
                                     </div>
                                 </div>
