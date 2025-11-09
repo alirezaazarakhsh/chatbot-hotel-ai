@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-// FIX: Corrected the import by replacing 'FunctionCallPart' with 'FunctionCall' as it is not an exported member.
-import { GoogleGenAI, GenerateContentResponse, Part, Tool, FunctionDeclaration, Type, FunctionCall } from '@google/genai';
+// FIX: Changed import to value import to allow 'Type' enum usage.
+import { type GenerateContentResponse, type Part, type Tool, type FunctionDeclaration, Type, type FunctionCall } from '@google/genai';
 import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 import { apiService } from '../api/apiService';
+import { geminiService } from '../api/geminiService';
 import { translations } from '../i18n/translations';
 
 // Helper to convert data URL to a Gemini Part
@@ -130,17 +131,15 @@ export const useAppLogic = (language: Language) => {
     const generateConversationTitle = useCallback(async (chatId: string, messages: Message[]) => {
         try {
             if (!process.env.API_KEY) return;
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const conversationText = messages.map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text}`).join('\n');
             const prompt = `${t('generateTitlePrompt')}\n\n---\n${conversationText}\n---`;
             
-            const response = await ai.models.generateContent({
+            const response = await geminiService.generateContent({
                 model: 'gemini-2.5-flash',
-                contents: prompt,
+                contents: [{ parts: [{ text: prompt }] }],
             });
             
-            // FIX: Added nullish coalescing operator to handle cases where response.text might be undefined, preventing a type error.
-            const title = (response.text ?? '').trim().replace(/"/g, '');
+            const title = (response.text() ?? '').trim().replace(/"/g, '');
             
             if (title) {
                 setConversations(prev => prev.map(c => c.id === chatId ? { ...c, title } : c));
@@ -187,7 +186,6 @@ export const useAppLogic = (language: Language) => {
 
         try {
             if (!process.env.API_KEY) throw new Error("API Key is not configured.");
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
             const generateImageTool: FunctionDeclaration = {
                 name: 'generate_image',
@@ -261,25 +259,25 @@ export const useAppLogic = (language: Language) => {
             const contents = [...history, { role: 'user', parts: userParts }];
 
             const config: any = {};
-            // As per user request, temporarily disable Google Maps integration to troubleshoot network issues.
             config.tools = tools;
 
-            let stream = await ai.models.generateContentStream({
+            let stream = await geminiService.generateContentStream({
                 model: 'gemini-2.5-flash',
                 contents,
                 config: {
                     ...config,
                     systemInstruction: botSettings.system_instruction
-                }
+                },
+                abortSignal: abortController.current.signal
             });
             
             let fullText = '';
-            let finalResponse: GenerateContentResponse | undefined;
+            let finalResponse: any | undefined;
 
             for await (const chunk of stream) {
                 if (abortController.current?.signal.aborted) break;
 
-                const functionCall = chunk.functionCalls?.[0];
+                const functionCall = chunk.functionCalls()?.[0];
                 if (functionCall) {
                     updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: functionCall.args, thinking: true } });
                     
@@ -287,9 +285,8 @@ export const useAppLogic = (language: Language) => {
 
                     if (functionCall.name === 'generate_image') {
                         try {
-                             const imageResponse = await ai.models.generateImages({
+                             const imageResponse = await geminiService.generateImages({
                                 model: 'imagen-4.0-generate-001',
-                                // FIX: Explicitly convert the prompt argument to a string to prevent "Type 'unknown' is not assignable to type 'string'" error.
                                 prompt: String(functionCall.args.prompt),
                                 config: { numberOfImages: 1 }
                             });
@@ -305,36 +302,30 @@ export const useAppLogic = (language: Language) => {
                              functionResponse = { functionResponse: { name: 'generate_image', response: { content: 'An error occurred during image generation.' } } };
                         }
                     } else {
-                        // Handle other functions here if any
                         functionResponse = { functionResponse: { name: functionCall.name, response: { content: 'Unknown function' } } };
                     }
                     
-                    // FIX: Wrapped the functionResponse Part in a Content object with role 'tool' to match the expected type for the 'contents' array.
                     const newContents = [...contents, { role: 'model', parts: [{ functionCall }] }, { role: 'tool', parts: [functionResponse] }];
 
-                    // Send the function response back to the model
-                    stream = await ai.models.generateContentStream({
+                    stream = await geminiService.generateContentStream({
                         model: 'gemini-2.5-flash',
                         contents: newContents,
                          config: {
                             ...config,
                             systemInstruction: botSettings.system_instruction
-                        }
+                        },
+                        abortSignal: abortController.current.signal
                     });
-                     // FIX: Cast the 'response' object to access its properties safely, resolving 'unknown' type errors.
-                    const toolResponsePayload = functionResponse.functionResponse.response as { content: string, imageUrl?: string };
+                    const toolResponsePayload = (functionResponse as any).functionResponse.response as { content: string, imageUrl?: string };
 
-                     // Update the message to indicate we're no longer "thinking"
                      updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: functionCall.args, result: toolResponsePayload, thinking: false } });
 
-                     // If the image was generated, attach it to the message immediately
                      if(toolResponsePayload.imageUrl){
                         updateBotMessage(botMessage.id, { imageUrl: toolResponsePayload.imageUrl });
                      }
 
                 } else {
-                    // FIX: Added nullish coalescing operator to safely handle streaming chunks that might not have a 'text' property.
-                    fullText += chunk.text ?? '';
+                    fullText += chunk.text() ?? '';
                     finalResponse = chunk;
                     updateBotMessage(botMessage.id, { text: fullText });
                 }
@@ -387,7 +378,6 @@ export const useAppLogic = (language: Language) => {
         }));
     }, [activeChatId, setConversations]);
 
-    // FIX: Export `setConversations` to allow parent components to modify the conversations state.
     return {
         isAppReady, conversations, setConversations, activeChatId, setActiveChatId, isLoading, faqs,
         botSettings, startNewChat, handleSendMessage, handleDeleteConversation, handleClearChat, handleStopGenerating,
