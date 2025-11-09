@@ -65,6 +65,9 @@ export const translations = {
         enableMapsInSettings: "Please enable 'Show Map' in settings to use location-based features.",
         locationPermissionDenied: "Location access denied. Please enable location permissions for this site in your browser settings to use this feature.",
         locationError: "Unable to retrieve your location. Please check your device settings and try again.",
+        locationModalTitle: 'Location Access Required',
+        locationModalBody: "To find what's nearby, this app needs access to your location. Please enable location permissions for this site in your browser's settings and try again.",
+        locationModalClose: 'OK',
     },
     fa: {
         newChat: 'گفتگوی جدید', chatHistory: 'تاریخچه گفتگو', settings: 'تنظیمات', faq: 'سوالات متداول',
@@ -123,6 +126,9 @@ export const translations = {
         enableMapsInSettings: "لطفاً برای استفاده از قابلیت‌های مبتنی بر مکان، گزینه «نمایش نقشه» را در تنظیمات فعال کنید.",
         locationPermissionDenied: "دسترسی به موقعیت مکانی رد شد. لطفاً برای استفاده از این قابلیت، دسترسی به موقعیت مکانی را در تنظیمات مرورگر خود برای این سایت فعال کنید.",
         locationError: "دریافت موقعیت مکانی شما ممکن نبود. لطفاً تنظیمات دستگاه خود را بررسی کرده و دوباره تلاش کنید.",
+        locationModalTitle: 'نیاز به دسترسی به موقعیت مکانی',
+        locationModalBody: 'برای یافتن مکان‌های نزدیک، این برنامه به موقعیت مکانی شما نیاز دارد. لطفاً دسترسی به موقعیت مکانی را برای این سایت در تنظیمات مرورگر خود فعال کرده و دوباره تلاش کنید.',
+        locationModalClose: 'باشه',
     }
 };
 
