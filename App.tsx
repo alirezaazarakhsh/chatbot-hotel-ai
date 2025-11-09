@@ -1,7 +1,5 @@
 
 
-
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -259,10 +257,10 @@ const App: React.FC = () => {
     };
 
     const examplePrompts = [
-        { title: t('examplePrompt1Title'), prompt: t('examplePrompt1'), icon: <Icons.Hotel /> },
-        { title: t('examplePrompt2Title'), prompt: t('examplePrompt2'), icon: <Icons.MapPin />, requiresLocation: true },
-        { title: t('examplePrompt3Title'), prompt: t('examplePrompt3'), icon: <Icons.Plane /> },
-        { title: t('examplePrompt4Title'), prompt: t('examplePrompt4'), icon: <Icons.ImageIcon /> },
+        { title: t('examplePrompt1Title'), prompt: t('examplePrompt1'), icon: <Icons.Hotel className="h-5 w-5" /> },
+        { title: t('examplePrompt2Title'), prompt: t('examplePrompt2'), icon: <Icons.MapPin className="h-5 w-5" />, requiresLocation: true },
+        { title: t('examplePrompt3Title'), prompt: t('examplePrompt3'), icon: <Icons.Plane className="h-5 w-5" /> },
+        { title: t('examplePrompt4Title'), prompt: t('examplePrompt4'), icon: <Icons.ImageIcon className="h-5 w-5" /> },
     ];
 
     const handleExamplePromptClick = (prompt: string) => {
@@ -346,7 +344,7 @@ const App: React.FC = () => {
             </aside>
 
             <main className={mainClass}>
-                <header className="flex items-center justify-between p-2 sm:p-4 border-b bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 flex-shrink-0">
+                <header className="flex items-center justify-between p-4 border-b bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 flex-shrink-0">
                     <div className="w-10 h-10 flex items-center justify-center">
                         {activeConversation && activeConversation.messages.length > 0 && (
                             <button onClick={onClearChat} className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500" title={t('clearChat')}>
@@ -395,42 +393,48 @@ const App: React.FC = () => {
                             <div ref={endOfMessagesRef} />
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-center text-neutral-500 p-4">
-                            <img src={botSettings.logo_url} alt="Safarnameh24 Logo" className="w-40 h-auto mb-4" />
-                            <h1 className="text-3xl md:text-4xl font-bold text-neutral-800 dark:text-neutral-200">{botSettings.welcome_title ? (language === 'fa' ? botSettings.welcome_title : 'Safarnameh24 Smart Chatbot') : t('welcomeMessageTitle')}</h1>
+                        <div className="flex flex-col items-center justify-center h-full text-center text-neutral-500">
+                            <img src={botSettings.logo_url} alt="Safarnameh24 Logo" className="w-32 sm:w-40 h-auto mb-4" />
+                            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-neutral-800 dark:text-neutral-200">{botSettings.welcome_title ? (language === 'fa' ? botSettings.welcome_title : 'Safarnameh24 Smart Chatbot') : t('welcomeMessageTitle')}</h1>
                             <p className="mt-4 max-w-md">{botSettings.welcome_message ? (language === 'fa' ? botSettings.welcome_message : 'Welcome! Ask me about hotels, restaurants, and attractions.') : t('welcomeMessageBody')}</p>
-                            
-                            <div className="mt-12 w-full max-w-2xl">
-                                <h2 className="text-lg font-semibold text-neutral-700 dark:text-neutral-300 mb-4">{t('examplePromptsTitle')}</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-start">
-                                    {examplePrompts.map((item, index) => (
-                                        <button 
-                                            key={index} 
-                                            onClick={() => item.requiresLocation ? handleLocationPrompt(item.prompt) : handleExamplePromptClick(item.prompt)}
-                                            className="p-4 bg-white dark:bg-neutral-700/50 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors border border-neutral-200 dark:border-neutral-700 w-full"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="text-[#F30F26]">{item.icon}</div>
-                                                <div>
-                                                    <h3 className="font-semibold text-neutral-800 dark:text-neutral-200">{item.title}</h3>
-                                                    <p className="text-sm text-neutral-500 dark:text-neutral-400">{item.prompt}</p>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
                         </div>
                     )}
                 </div>
+                
+                {activeConversation && activeConversation.messages.length === 0 && (
+                  <div className="px-4 md:px-6 pb-4 pt-2 bg-neutral-100 dark:bg-neutral-800">
+                    <div className="w-full max-w-3xl mx-auto">
+                        <h2 className="text-base font-semibold text-neutral-700 dark:text-neutral-300 mb-3 text-center">{t('examplePromptsTitle')}</h2>
+                        <div className="overflow-x-auto hide-scrollbar -mb-2 pb-2">
+                            <div className="flex gap-3 px-1 whitespace-nowrap">
+                                {examplePrompts.map((item, index) => (
+                                    <button 
+                                        key={index} 
+                                        onClick={() => item.requiresLocation ? handleLocationPrompt(item.prompt) : handleExamplePromptClick(item.prompt)}
+                                        className="inline-block p-3 bg-white dark:bg-neutral-700/50 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors border border-neutral-200 dark:border-neutral-700 w-48 text-start"
+                                    >
+                                        <div className="flex flex-col h-full">
+                                            <div className="text-[#F30F26] mb-1.5">{item.icon}</div>
+                                            <div className="whitespace-normal">
+                                                <h3 className="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">{item.title}</h3>
+                                                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">{item.prompt}</p>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                  </div>
+                )}
 
                 <footer className="p-4 border-t bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
                     {imageToSend && (<div className="relative mb-2 w-20 h-20"><img src={imageToSend.dataUrl} alt={t('imagePreview')} className="w-full h-full object-cover rounded-lg"/><button onClick={() => setImageToSend(null)} className={`absolute -top-2 bg-neutral-800 text-white rounded-full p-0.5 w-6 h-6 flex items-center justify-center ${language === 'fa' ? '-right-2' : '-left-2'}`} aria-label={t('removeImage')}><Icons.Close /></button></div>)}
                     <div className="relative">
                          <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden"/>
-                        <textarea value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} placeholder={t('messagePlaceholder')} className={`w-full py-3 text-base bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none ${language === 'fa' ? 'pr-12 pl-20 sm:pl-24' : 'pl-12 pr-20 sm:pr-24'}`} rows={1} disabled={isLoading} />
-                         <div className={`absolute inset-y-0 flex items-center ${language === 'fa' ? 'right-2 sm:right-3' : 'left-2 sm:left-3'}`}><button onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!imageToSend} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50" title={t('sendImage')}><Icons.Paperclip /></button></div>
-                         <div className={`absolute inset-y-0 flex items-center gap-1 ${language === 'fa' ? 'left-2 sm:left-3' : 'right-2 sm:right-3'}`}>
+                        <textarea value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSendMessage(); } }} placeholder={t('messagePlaceholder')} className={`w-full py-3 text-base bg-neutral-100 dark:bg-neutral-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F30F26] resize-none px-14`} rows={1} disabled={isLoading} />
+                         <div className={`absolute inset-y-0 flex items-center ${language === 'fa' ? 'right-3' : 'left-3'}`}><button onClick={() => fileInputRef.current?.click()} disabled={isLoading || !!imageToSend} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50" title={t('sendImage')}><Icons.Paperclip /></button></div>
+                         <div className={`absolute inset-y-0 flex items-center gap-1 ${language === 'fa' ? 'left-3' : 'right-3'}`}>
                             {isLoading ? (<button onClick={handleStopGenerating} className="p-2 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700" title={t('stopGenerating')}><Icons.StopGenerating /></button>)
                              : (
                                 <>
