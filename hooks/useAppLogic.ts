@@ -233,12 +233,11 @@ export const useAppLogic = (language: Language) => {
 
             const contents = [...history, { role: 'user', parts: userParts }];
             
-            const config: any = {
-                tools: [...baseTools]
-            };
+            const config: any = {};
 
+            // Conditionally set tools. googleMaps cannot be used with other tools like function declarations.
             if (callbacks.isMapEnabled) {
-                config.tools.unshift({ googleMaps: {} });
+                config.tools = [{ googleMaps: {} }];
                 if (callbacks.userLocation) {
                     config.toolConfig = {
                         retrievalConfig: {
@@ -249,6 +248,8 @@ export const useAppLogic = (language: Language) => {
                         }
                     };
                 }
+            } else {
+                config.tools = baseTools;
             }
 
             let stream = await ai.models.generateContentStream({
