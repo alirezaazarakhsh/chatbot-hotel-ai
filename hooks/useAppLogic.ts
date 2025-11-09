@@ -204,7 +204,7 @@ export const useAppLogic = (language: Language) => {
                     required: ['prompt']
                 }
             };
-            const tools: Tool[] = [{ functionDeclarations: [generateImageTool] }];
+            const baseTools: Tool[] = [{ functionDeclarations: [generateImageTool] }];
             
             const history = conversation.messages.map(msg => {
                 const parts: Part[] = [];
@@ -232,20 +232,23 @@ export const useAppLogic = (language: Language) => {
             }
 
             const contents = [...history, { role: 'user', parts: userParts }];
+            
+            const config: any = {
+                tools: [...baseTools]
+            };
 
-            const config: any = {};
-            if (callbacks.isMapEnabled && callbacks.userLocation) {
-                config.tools = [{ googleMaps: {} }, ...tools];
-                config.toolConfig = {
-                    retrievalConfig: {
-                        latLng: {
-                            latitude: callbacks.userLocation.lat,
-                            longitude: callbacks.userLocation.lng
+            if (callbacks.isMapEnabled) {
+                config.tools.unshift({ googleMaps: {} });
+                if (callbacks.userLocation) {
+                    config.toolConfig = {
+                        retrievalConfig: {
+                            latLng: {
+                                latitude: callbacks.userLocation.lat,
+                                longitude: callbacks.userLocation.lng
+                            }
                         }
-                    }
+                    };
                 }
-            } else {
-                 config.tools = tools;
             }
 
             let stream = await ai.models.generateContentStream({
