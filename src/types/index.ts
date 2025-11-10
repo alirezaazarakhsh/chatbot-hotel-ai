@@ -29,12 +29,15 @@ export interface Part {
     };
     functionCall?: {
         name: string;
-        args: object;
+        args: any;
     };
     functionResponse?: {
         name: string;
-        response: object;
+        response: any;
     };
+    groundingMetadata?: {
+        groundingChunks?: GroundingChunk[];
+    }
 }
 
 export interface Content {

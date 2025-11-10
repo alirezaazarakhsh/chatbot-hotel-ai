@@ -28,7 +28,6 @@ const handleApiResponse = async (response: Response) => {
     return response;
 };
 
-// FIX: Added explicit return type to the generator function to ensure proper type inference for chunks.
 async function* streamResponse(response: Response, abortSignal: AbortSignal): AsyncGenerator<Part | { groundingMetadata: any }> {
     const reader = response.body?.getReader();
     if (!reader) throw new Error("Failed to get response reader");
@@ -46,21 +45,17 @@ async function* streamResponse(response: Response, abortSignal: AbortSignal): As
 
         buffer += decoder.decode(value, { stream: true });
         
-        // The response is a stream of JSON objects prefixed with "data: ".
-        // We might get multiple objects in one chunk, or a partial object.
         const parts = buffer.split('\n');
-        buffer = parts.pop() || ''; // Keep the last partial part in the buffer
+        buffer = parts.pop() || ''; 
 
         for (const part of parts) {
             if (part.startsWith('data: ')) {
                 try {
-                    const jsonString = part.substring(6); // Remove "data: "
+                    const jsonString = part.substring(6);
                     const json = JSON.parse(jsonString);
-                    // Extract the relevant data from the streamed response structure
                     const candidate = json.candidates?.[0];
                     if (candidate?.content?.parts) {
                         for (const contentPart of candidate.content.parts) {
-                            // FIX: Cast the yielded part to the `Part` type to resolve `any` type issues.
                             yield contentPart as Part;
                         }
                     }

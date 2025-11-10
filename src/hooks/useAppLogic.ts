@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language, Part, Content } from '../types';
+import { Conversation, Message, FAQ, BotSettings, BotVoice, Language, Part, Content } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 import { apiService } from '../api/apiService';
 import { geminiService } from '../api/geminiService';
@@ -224,7 +224,8 @@ export const useAppLogic = (language: Language) => {
             let groundingChunks: any[] = [];
 
             for await (const chunk of stream) {
-                if (chunk.functionCall) {
+                // FIX: Added a type guard to ensure 'chunk' has 'functionCall' property before accessing it.
+                if ('functionCall' in chunk && chunk.functionCall) {
                     const functionCall = chunk.functionCall;
                     updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: functionCall.args, thinking: true } });
 
@@ -248,7 +249,6 @@ export const useAppLogic = (language: Language) => {
                         functionResponsePart = { functionResponse: { name: functionCall.name, response: { content: 'Unknown function' } } };
                     }
                     
-                    // FIX: Explicitly type `newContents` as `Content[]` to ensure type compatibility.
                     const newContents: Content[] = [...contents, { role: 'model', parts: [chunk] }, { role: 'tool', parts: [functionResponsePart] }];
                     
                     const finalStream = geminiService.generateContentStream({ contents: newContents, systemInstruction: botSettings.system_instruction, abortSignal: abortController.current.signal });
@@ -260,13 +260,19 @@ export const useAppLogic = (language: Language) => {
                     }
                     
                     for await (const finalChunk of finalStream) {
-                        fullText += finalChunk.text || '';
+                        // FIX: Added a type guard to safely access 'text' property from the stream's union type.
+                        if ('text' in finalChunk) {
+                            fullText += finalChunk.text || '';
+                        }
                         if (finalChunk.groundingMetadata?.groundingChunks) groundingChunks = finalChunk.groundingMetadata.groundingChunks;
                         updateBotMessage(botMessage.id, { text: fullText });
                     }
-                    break; // Exit the initial loop once function call is handled
+                    break;
                 } else {
-                    fullText += chunk.text || '';
+                    // FIX: Added a type guard to safely access 'text' property from the stream's union type.
+                    if ('text' in chunk) {
+                        fullText += chunk.text || '';
+                    }
                     if (chunk.groundingMetadata?.groundingChunks) groundingChunks = chunk.groundingMetadata.groundingChunks;
                     updateBotMessage(botMessage.id, { text: fullText });
                 }

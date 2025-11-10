@@ -58,7 +58,6 @@ export default defineConfig(({ mode }) => {
     
     resolve: {
         alias: {
-            // All source files are now under src/, so we adjust the alias
             '@': path.resolve(__dirname, './src'),
         },
     },
