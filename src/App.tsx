@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -60,8 +59,7 @@ const App: React.FC = () => {
     const hasNewUpdate = packageVersion !== lastSeenVersion;
     const [showUpdatePulse, setShowUpdatePulse] = useState(hasNewUpdate);
 
-
-    useEffect(() => { document.documentElement.style.setProperty('--app-font', `"${appFont}"`); }, [appFont]);
+    useEffect(() => { document.documentElement.style.setProperty('--app-font', `var(--font-${appFont.toLowerCase().replace(/ /g, '-')})`); }, [appFont]);
     useEffect(() => { endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [conversations, activeChatId, isLoading, userInput]);
     useEffect(() => {
         document.documentElement.lang = language;
@@ -83,7 +81,8 @@ const App: React.FC = () => {
                 },
                 (error) => {
                     console.error(`Geolocation error: ${error.code} - ${error.message}`);
-                }
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         }
     }, [isMapEnabled]);
@@ -129,7 +128,7 @@ const App: React.FC = () => {
         }
     }, [isBotVoiceEnabled, botVoice, updateBotMessage]);
     
-    const onSendMessage = (text = userInput) => {
+    const onSendMessage = useCallback((text = userInput) => {
         if (!text.trim() && !imageToSend) return;
         handleSendMessage(
             { text, image: imageToSend },
@@ -137,7 +136,7 @@ const App: React.FC = () => {
         );
         setUserInput('');
         setImageToSend(null);
-    };
+    }, [userInput, imageToSend, handleSendMessage, isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS, isMapEnabled, userLocation]);
 
     const handleMicClick = useCallback(async () => {
         initAudioContext();
@@ -251,7 +250,8 @@ const App: React.FC = () => {
                 } else {
                     alert(t('locationError'));
                 }
-            }
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     };
 
@@ -287,7 +287,7 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="h-screen bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden" style={{ fontFamily: appFont }}>
+        <div className="h-screen bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden">
             {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden" />}
             <aside className={`flex flex-col bg-neutral-50 dark:bg-neutral-900 transition-transform duration-300 ease-in-out ${sidebarClass}`}>
                 <div className="p-4 flex-grow flex flex-col min-h-0">
