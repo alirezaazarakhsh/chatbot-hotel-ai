@@ -80,7 +80,7 @@ export const useAppLogic = (language: Language) => {
             }
         };
         initializeApp();
-    }, [t, setConversations, setActiveChatId, conversations, activeChatId]); 
+    }, [t]); 
 
     const updateBotMessage = useCallback((messageId: string, updates: Partial<Message>) => {
         setConversations(prev => prev.map(c => c.id === activeChatId ? {
@@ -178,27 +178,36 @@ export const useAppLogic = (language: Language) => {
         setConversations(prev => prev.map(c => c.id === activeChatId ? updatedConversation : c));
 
         try {
-            const history = conversation.messages.flatMap((msg): Content[] => {
-                const role = msg.sender === 'user' ? 'user' : 'model';
-                const parts: Part[] = [];
-
-                if (msg.imageUrl && role === 'user') {
-                    const inlineDataPart = dataUrlToInlineData(msg.imageUrl);
-                    if (inlineDataPart) parts.push(inlineDataPart);
+            const history: Content[] = conversation.messages.flatMap((msg): Content[] => {
+                if (msg.sender === 'user') {
+                    const parts: Part[] = [];
+                    if (msg.text) parts.push({ text: msg.text });
+                    if (msg.imageUrl) {
+                        const inlineDataPart = dataUrlToInlineData(msg.imageUrl);
+                        if (inlineDataPart) parts.push(inlineDataPart);
+                    }
+                    return parts.length > 0 ? [{ role: 'user', parts }] : [];
+                } else { // sender is 'bot'
+                    const modelParts: Content[] = [];
+                    // Add the tool call and its result to history
+                    if (msg.toolCall && msg.toolCall.result) {
+                        modelParts.push({
+                            role: 'model',
+                            parts: [{ functionCall: { name: msg.toolCall.name, args: msg.toolCall.args } }]
+                        });
+                        modelParts.push({
+                            role: 'tool',
+                            parts: [{ functionResponse: { name: msg.toolCall.name, response: msg.toolCall.result } }]
+                        });
+                    }
+                    // Add the final text response from the model
+                    if (msg.text) {
+                        modelParts.push({ role: 'model', parts: [{ text: msg.text }] });
+                    }
+                     // If the model part is just an image (from image generation), it will be handled by the result, but if it had text too, it gets added.
+                    return modelParts;
                 }
-                
-                if (msg.text) parts.push({ text: msg.text });
-                
-                if (msg.toolCall && role === 'model' && msg.toolCall.result) {
-                    return [
-                        { role: 'model', parts: [{ functionCall: { name: msg.toolCall.name, args: msg.toolCall.args } }] },
-                        { role: 'tool', parts: [{ functionResponse: { name: msg.toolCall.name, response: msg.toolCall.result } }] }
-                    ];
-                }
-
-                return parts.length > 0 ? [{ role, parts }] : [];
             });
-
 
             const userParts: Part[] = [];
             if (input.image) {
@@ -224,7 +233,6 @@ export const useAppLogic = (language: Language) => {
             let groundingChunks: any[] = [];
 
             for await (const chunk of stream) {
-                // FIX: Added a type guard to ensure 'chunk' has 'functionCall' property before accessing it.
                 if ('functionCall' in chunk && chunk.functionCall) {
                     const functionCall = chunk.functionCall;
                     updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: functionCall.args, thinking: true } });
@@ -260,20 +268,22 @@ export const useAppLogic = (language: Language) => {
                     }
                     
                     for await (const finalChunk of finalStream) {
-                        // FIX: Added a type guard to safely access 'text' property from the stream's union type.
                         if ('text' in finalChunk) {
                             fullText += finalChunk.text || '';
                         }
-                        if (finalChunk.groundingMetadata?.groundingChunks) groundingChunks = finalChunk.groundingMetadata.groundingChunks;
+                        if ('groundingMetadata' in finalChunk && finalChunk.groundingMetadata?.groundingChunks) {
+                            groundingChunks = finalChunk.groundingMetadata.groundingChunks;
+                        }
                         updateBotMessage(botMessage.id, { text: fullText });
                     }
-                    break;
+                    break; 
                 } else {
-                    // FIX: Added a type guard to safely access 'text' property from the stream's union type.
                     if ('text' in chunk) {
                         fullText += chunk.text || '';
                     }
-                    if (chunk.groundingMetadata?.groundingChunks) groundingChunks = chunk.groundingMetadata.groundingChunks;
+                    if ('groundingMetadata' in chunk && chunk.groundingMetadata?.groundingChunks) {
+                        groundingChunks = chunk.groundingMetadata.groundingChunks;
+                    }
                     updateBotMessage(botMessage.id, { text: fullText });
                 }
             }
