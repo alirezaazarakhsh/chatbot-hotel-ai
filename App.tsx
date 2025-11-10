@@ -75,6 +75,11 @@ const App: React.FC = () => {
     }, [theme]);
      useEffect(() => {
         if (isMapEnabled) {
+            const geoOptions = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0,
+            };
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     setUserLocation({
@@ -84,7 +89,8 @@ const App: React.FC = () => {
                 },
                 (error) => {
                     console.error(`Geolocation error: ${error.code} - ${error.message}`);
-                }
+                },
+                geoOptions
             );
         }
     }, [isMapEnabled]);
@@ -238,6 +244,11 @@ const App: React.FC = () => {
             return;
         }
 
+        const geoOptions = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0,
+        };
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 setUserLocation({
@@ -252,7 +263,8 @@ const App: React.FC = () => {
                 } else {
                     alert(t('locationError'));
                 }
-            }
+            },
+            geoOptions
         );
     };
 

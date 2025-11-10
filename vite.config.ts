@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
             'Origin': 'https://cps.safarnameh24.com',
             'Referer': 'https://cps.safarnameh24.com/',
           },
+          rewrite: (path) => path.replace(/^\/api/, ''),
         },
         '/gemini-api': {
           target: 'https://generativelanguage.googleapis.com',
