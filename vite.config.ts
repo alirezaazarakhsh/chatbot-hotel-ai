@@ -17,17 +17,24 @@ export default defineConfig(({ mode }) => {
           target: 'https://cps.safarnameh24.com',
           changeOrigin: true,
           secure: false,
+          rewrite: (path) => path.replace(/^\/api/, ''),
           headers: {
             'Origin': 'https://cps.safarnameh24.com',
             'Referer': 'https://cps.safarnameh24.com/',
           },
-          rewrite: (path) => path.replace(/^\/api/, ''),
         },
         '/gemini-api': {
           target: 'https://generativelanguage.googleapis.com',
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path.replace(/^\/gemini-api/, ''),
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
+              const url = new URL(proxyReq.path, 'https://generativelanguage.googleapis.com');
+              url.searchParams.append('key', env.GEMINI_API_KEY);
+              proxyReq.path = url.pathname + url.search;
+            });
+          },
         },
       },
     },
@@ -48,7 +55,6 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
 
     define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.APP_VERSION': JSON.stringify(packageJson.version),
     },
 

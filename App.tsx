@@ -1,11 +1,8 @@
-
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { DEFAULT_FONT } from './constants';
 import { Language, Theme, BotVoice } from './types';
-import { apiService } from './api/apiService';
 import { Icons } from './components/Icons';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { SettingsModal } from './components/SettingsModal';
@@ -13,6 +10,7 @@ import { FAQModal, UpdateModal } from './components/FAQModal';
 import { MessageRenderer } from './components/MessageRenderer';
 import { changelog } from './i18n/translations';
 import { audioUtils } from './utils/audioUtils';
+import { apiService } from './api/apiService';
 
 const packageVersion = process.env.APP_VERSION;
 
@@ -24,7 +22,6 @@ const App: React.FC = () => {
     });
     const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
 
-    // FIX: Destructure `setConversations` to make it available in the component.
     const {
         isAppReady, conversations, setConversations, activeChatId, setActiveChatId, isLoading, faqs,
         botSettings, startNewChat, handleSendMessage, handleDeleteConversation, handleStopGenerating,
@@ -61,8 +58,7 @@ const App: React.FC = () => {
     const hasNewUpdate = packageVersion !== lastSeenVersion;
     const [showUpdatePulse, setShowUpdatePulse] = useState(hasNewUpdate);
 
-
-    useEffect(() => { document.documentElement.style.setProperty('--app-font', `"${appFont}"`); }, [appFont]);
+    useEffect(() => { document.documentElement.style.setProperty('--app-font', appFont); }, [appFont]);
     useEffect(() => { endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [conversations, activeChatId, isLoading, userInput]);
     useEffect(() => {
         document.documentElement.lang = language;
@@ -75,11 +71,6 @@ const App: React.FC = () => {
     }, [theme]);
      useEffect(() => {
         if (isMapEnabled) {
-            const geoOptions = {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0,
-            };
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     setUserLocation({
@@ -90,7 +81,7 @@ const App: React.FC = () => {
                 (error) => {
                     console.error(`Geolocation error: ${error.code} - ${error.message}`);
                 },
-                geoOptions
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         }
     }, [isMapEnabled]);
@@ -136,7 +127,7 @@ const App: React.FC = () => {
         }
     }, [isBotVoiceEnabled, botVoice, updateBotMessage]);
     
-    const onSendMessage = (text = userInput) => {
+    const onSendMessage = useCallback((text = userInput) => {
         if (!text.trim() && !imageToSend) return;
         handleSendMessage(
             { text, image: imageToSend },
@@ -144,7 +135,7 @@ const App: React.FC = () => {
         );
         setUserInput('');
         setImageToSend(null);
-    };
+    }, [userInput, imageToSend, handleSendMessage, isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS, isMapEnabled, userLocation]);
 
     const handleMicClick = useCallback(async () => {
         initAudioContext();
@@ -244,11 +235,6 @@ const App: React.FC = () => {
             return;
         }
 
-        const geoOptions = {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0,
-        };
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 setUserLocation({
@@ -264,7 +250,7 @@ const App: React.FC = () => {
                     alert(t('locationError'));
                 }
             },
-            geoOptions
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     };
 
