@@ -1,8 +1,11 @@
+
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { DEFAULT_FONT } from './constants';
 import { Language, Theme, BotVoice } from './types';
+import { apiService } from './api/apiService';
 import { Icons } from './components/Icons';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { SettingsModal } from './components/SettingsModal';
@@ -10,7 +13,6 @@ import { FAQModal, UpdateModal } from './components/FAQModal';
 import { MessageRenderer } from './components/MessageRenderer';
 import { changelog } from './i18n/translations';
 import { audioUtils } from './utils/audioUtils';
-import { apiService } from './api/apiService';
 
 const packageVersion = process.env.APP_VERSION;
 
@@ -58,7 +60,8 @@ const App: React.FC = () => {
     const hasNewUpdate = packageVersion !== lastSeenVersion;
     const [showUpdatePulse, setShowUpdatePulse] = useState(hasNewUpdate);
 
-    useEffect(() => { document.documentElement.style.setProperty('--app-font', appFont); }, [appFont]);
+
+    useEffect(() => { document.documentElement.style.setProperty('--app-font', `"${appFont}"`); }, [appFont]);
     useEffect(() => { endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [conversations, activeChatId, isLoading, userInput]);
     useEffect(() => {
         document.documentElement.lang = language;
@@ -80,8 +83,7 @@ const App: React.FC = () => {
                 },
                 (error) => {
                     console.error(`Geolocation error: ${error.code} - ${error.message}`);
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                }
             );
         }
     }, [isMapEnabled]);
@@ -127,7 +129,7 @@ const App: React.FC = () => {
         }
     }, [isBotVoiceEnabled, botVoice, updateBotMessage]);
     
-    const onSendMessage = useCallback((text = userInput) => {
+    const onSendMessage = (text = userInput) => {
         if (!text.trim() && !imageToSend) return;
         handleSendMessage(
             { text, image: imageToSend },
@@ -135,7 +137,7 @@ const App: React.FC = () => {
         );
         setUserInput('');
         setImageToSend(null);
-    }, [userInput, imageToSend, handleSendMessage, isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS, isMapEnabled, userLocation]);
+    };
 
     const handleMicClick = useCallback(async () => {
         initAudioContext();
@@ -249,8 +251,7 @@ const App: React.FC = () => {
                 } else {
                     alert(t('locationError'));
                 }
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            }
         );
     };
 
@@ -286,7 +287,7 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="h-screen bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden">
+        <div className="h-screen bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden" style={{ fontFamily: appFont }}>
             {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden" />}
             <aside className={`flex flex-col bg-neutral-50 dark:bg-neutral-900 transition-transform duration-300 ease-in-out ${sidebarClass}`}>
                 <div className="p-4 flex-grow flex flex-col min-h-0">

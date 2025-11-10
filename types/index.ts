@@ -1,5 +1,5 @@
 export interface HotelLink { name: string; url: string; }
-
+// Fix: Made uri and title optional to match the type from @google/genai, resolving assignment errors.
 export interface GroundingChunk {
     web?: { uri?: string; title?: string; };
     maps?: { uri?: string; title?: string; };
