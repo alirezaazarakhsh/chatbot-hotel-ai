@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 // Fix: Use relative paths for local module imports
-import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language, Part, Tool, FunctionCall } from '../types';
+import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language, Part, Tool, FunctionCall, Content } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 import { apiService } from '../api/apiService';
 import { geminiService } from '../api/geminiService';
@@ -178,7 +178,8 @@ export const useAppLogic = (language: Language) => {
         setConversations(prev => prev.map(c => c.id === activeChatId ? updatedConversation : c));
 
         try {
-            const history = conversation.messages.flatMap((msg): { role: string; parts: Part[] }[] => {
+            // Fix: Use the correct `Content` type for the conversation history array.
+            const history = conversation.messages.flatMap((msg): Content[] => {
                 const role = msg.sender === 'user' ? 'user' : 'model';
                 if (role === 'user') {
                     const userParts: Part[] = [];
@@ -189,7 +190,8 @@ export const useAppLogic = (language: Language) => {
                     if (msg.text) userParts.push({ text: msg.text });
                     return userParts.length > 0 ? [{ role, parts: userParts }] : [];
                 }
-                const modelTurns: { role: string; parts: Part[] }[] = [];
+                // Fix: Use the correct `Content` type for the model turns array.
+                const modelTurns: Content[] = [];
                 if (msg.toolCall && !msg.toolCall.thinking && msg.toolCall.result) {
                     modelTurns.push({ role: 'model', parts: [{ functionCall: { name: msg.toolCall.name, args: msg.toolCall.args } }] });
                     modelTurns.push({ role: 'tool', parts: [{ functionResponse: { name: msg.toolCall.name, response: msg.toolCall.result } }] });

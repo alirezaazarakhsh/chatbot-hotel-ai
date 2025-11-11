@@ -18,10 +18,6 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path.replace(/^\/api/, ''),
-          headers: {
-            'Origin': 'https://cps.safarnameh24.com',
-            'Referer': 'https://cps.safarnameh24.com/',
-          },
         },
         '/gemini-api': {
             target: 'https://generativelanguage.googleapis.com',
