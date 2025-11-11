@@ -13,6 +13,34 @@
     <meta name="apple-mobile-web-app-title" content="سفرنامه هوشمند">
     <meta name="application-name" content="سفرنامه هوشمند">
     
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn-font@v33.0.3/Vazirmatn-font-face.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/irsans-font@3.1.2/dist/font-face.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/samim-font@3.1.0/dist/font-face.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/yekan-bakh-font@v3.0.0/dist/font-face.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/tabataba-ee/B-Nazanin-font@v1.0.0/dist/font-face.css">
+    
+    <style>
+      body {
+        font-family: var(--app-font, "Vazirmatn"), sans-serif;
+      }
+      /* Custom scrollbar for Webkit browsers (Chrome, Safari, etc.) */
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #777; }
+      /* Custom scrollbar for Firefox */
+      html { scrollbar-width: thin; scrollbar-color: #555 transparent; }
+      /* Utility to hide scrollbar */
+      .hide-scrollbar::-webkit-scrollbar { display: none; }
+      .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+      }
+    </script>
     <script>
       // Set theme on page load to avoid FOUC (Flash of Unstyled Content).
       // We default to dark mode. We only switch to light if the user has explicitly
@@ -26,20 +54,20 @@
   <script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
     "path": "https://aistudiocdn.com/path@^0.12.7",
-    "fs": "https://aistudiocdn.com/fs@^0.0.1-security",
-    "vite": "https://aistudiocdn.com/vite@^7.2.2",
+    "vite": "https://aistudiocdn.com/vite@^7.1.12",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0"
+    "fs": "https://aistudiocdn.com/fs@^0.0.1-security"
   }
 }
 </script>
 </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
