@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'fa';
 export type Theme = 'light' | 'dark';
 

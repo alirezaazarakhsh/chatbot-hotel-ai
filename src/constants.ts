@@ -1,3 +1,4 @@
+
 export const DEFAULT_FONT = 'Yekan Bakh';
 
 export const AVAILABLE_FONTS = [

@@ -1,17 +1,17 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-// FIX: Changed path aliases to relative paths to resolve module loading errors.
-import { useAppLogic } from './hooks/useAppLogic';
-import { useLocalStorage } from './hooks/useLocalStorage';
-import { DEFAULT_FONT } from './constants';
-import { Language, Theme, BotVoice } from './types';
-import { apiService } from './api/apiService';
-import { Icons } from './components/Icons';
-import { LoadingSpinner } from './components/LoadingSpinner';
-import { SettingsModal } from './components/SettingsModal';
-import { FAQModal, UpdateModal } from './components/FAQModal';
-import { MessageRenderer } from './components/MessageRenderer';
-import { changelog } from './i18n/translations';
-import { audioUtils } from './utils/audioUtils';
+import { useAppLogic } from '@/hooks/useAppLogic';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { DEFAULT_FONT } from '@/constants';
+import { Language, Theme, BotVoice } from '@/types';
+import { apiService } from '@/api/apiService';
+import { Icons } from '@/components/Icons';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { SettingsModal } from '@/components/SettingsModal';
+import { FAQModal, UpdateModal } from '@/components/FAQModal';
+import { MessageRenderer } from '@/components/MessageRenderer';
+import { changelog } from '@/i18n/translations';
+import { audioUtils } from '@/utils/audioUtils';
 
 const packageVersion = process.env.APP_VERSION;
 
@@ -59,7 +59,7 @@ const App: React.FC = () => {
     const hasNewUpdate = packageVersion !== lastSeenVersion;
     const [showUpdatePulse, setShowUpdatePulse] = useState(hasNewUpdate);
 
-    useEffect(() => { document.documentElement.style.setProperty('--app-font', `var(--font-${appFont.toLowerCase().replace(/ /g, '-')})`); }, [appFont]);
+    useEffect(() => { document.documentElement.style.setProperty('--app-font', `var(--font-${appFont.toLowerCase().replace(/\s/g, '-')})`); }, [appFont]);
     useEffect(() => { endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [conversations, activeChatId, isLoading, userInput]);
     useEffect(() => {
         document.documentElement.lang = language;
@@ -82,7 +82,7 @@ const App: React.FC = () => {
                 (error) => {
                     console.error(`Geolocation error: ${error.code} - ${error.message}`);
                 },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
             );
         }
     }, [isMapEnabled]);
@@ -251,7 +251,7 @@ const App: React.FC = () => {
                     alert(t('locationError'));
                 }
             },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
     };
 

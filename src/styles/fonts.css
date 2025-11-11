@@ -1,4 +1,4 @@
-/* Yekan Bakh */
+
 @font-face {
   font-family: 'Yekan Bakh';
   src: url('/fonts/YekanBakh-Regular.woff2') format('woff2');
@@ -6,8 +6,6 @@
   font-style: normal;
   font-display: swap;
 }
-
-/* Vazirmatn */
 @font-face {
   font-family: 'Vazirmatn';
   src: url('/fonts/Vazirmatn-Regular.woff2') format('woff2');
@@ -15,8 +13,6 @@
   font-style: normal;
   font-display: swap;
 }
-
-/* Samim */
 @font-face {
   font-family: 'Samim';
   src: url('/fonts/Samim-Regular.woff2') format('woff2');
@@ -24,19 +20,10 @@
   font-style: normal;
   font-display: swap;
 }
-
-/* B Nazanin */
 @font-face {
   font-family: 'B Nazanin';
   src: url('/fonts/BNazanin.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
-}
-
-:root {
-  --font-yekan-bakh: "Yekan Bakh", sans-serif;
-  --font-vazirmatn: "Vazirmatn", sans-serif;
-  --font-samim: "Samim", sans-serif;
-  --font-b-nazanin: "B Nazanin", sans-serif;
 }

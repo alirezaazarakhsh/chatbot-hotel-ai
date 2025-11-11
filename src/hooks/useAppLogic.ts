@@ -1,10 +1,11 @@
+
 import { useState, useEffect, useRef, useCallback } from 'react';
-// FIX: Changed path aliases to relative paths to resolve module loading errors.
-import { Conversation, Message, FAQ, BotSettings, BotVoice, Language, Part, Content } from '../types';
+// FIX: Import Gemini AI SDK and types directly from '@google/genai' instead of a local types file.
+import { GoogleGenAI, GenerateContentResponse, Part, Tool, FunctionDeclaration, Type, Content, FunctionCall } from '@google/genai';
+import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language } from '@/types';
 import { useLocalStorage } from './useLocalStorage';
-import { apiService } from '../api/apiService';
-import { geminiService } from '../api/geminiService';
-import { translations } from '../i18n/translations';
+import { apiService } from '@/api/apiService';
+import { translations } from '@/i18n/translations';
 
 // Helper to convert data URL to a Gemini Part
 const dataUrlToInlineData = (dataUrl: string): Part | null => {
@@ -81,7 +82,7 @@ export const useAppLogic = (language: Language) => {
             }
         };
         initializeApp();
-    }, [t]); 
+    }, [t, setConversations, setActiveChatId, conversations, activeChatId]); 
 
     const updateBotMessage = useCallback((messageId: string, updates: Partial<Message>) => {
         setConversations(prev => prev.map(c => c.id === activeChatId ? {
@@ -129,11 +130,18 @@ export const useAppLogic = (language: Language) => {
 
     const generateConversationTitle = useCallback(async (chatId: string, messages: Message[]) => {
         try {
+            // FIX: Use the official @google/genai SDK for API calls.
+            if (!process.env.API_KEY) return;
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const conversationText = messages.map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text}`).join('\n');
             const prompt = `${t('generateTitlePrompt')}\n\n---\n${conversationText}\n---`;
             
-            const response = await geminiService.generateContent(prompt);
-            const title = response.trim().replace(/"/g, '');
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            
+            const title = (response.text ?? '').trim().replace(/"/g, '');
             
             if (title) {
                 setConversations(prev => prev.map(c => c.id === chatId ? { ...c, title } : c));
@@ -179,112 +187,141 @@ export const useAppLogic = (language: Language) => {
         setConversations(prev => prev.map(c => c.id === activeChatId ? updatedConversation : c));
 
         try {
+            // FIX: Use the official @google/genai SDK for API calls.
+            if (!process.env.API_KEY) throw new Error("API Key is not configured.");
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+            const generateImageTool: FunctionDeclaration = {
+                name: 'generate_image',
+                description: 'Generates an image based on a user description. Only use this when the user explicitly asks to create, draw, or generate an image.',
+                parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                        prompt: {
+                            type: Type.STRING,
+                            description: 'A detailed, creative, and descriptive prompt for the image to be generated. This must be in English.'
+                        }
+                    },
+                    required: ['prompt']
+                }
+            };
+            const tools: Tool[] = [{ functionDeclarations: [generateImageTool] }];
+            
             const history: Content[] = conversation.messages.flatMap((msg): Content[] => {
                 if (msg.sender === 'user') {
-                    const parts: Part[] = [];
-                    if (msg.text) parts.push({ text: msg.text });
+                    const userParts: Part[] = [];
                     if (msg.imageUrl) {
                         const inlineDataPart = dataUrlToInlineData(msg.imageUrl);
-                        if (inlineDataPart) parts.push(inlineDataPart);
+                        if (inlineDataPart) userParts.push(inlineDataPart);
                     }
-                    return parts.length > 0 ? [{ role: 'user', parts }] : [];
-                } else { // sender is 'bot'
-                    const modelParts: Content[] = [];
-                    // Add the tool call and its result to history
-                    if (msg.toolCall && msg.toolCall.result) {
-                        modelParts.push({
-                            role: 'model',
-                            parts: [{ functionCall: { name: msg.toolCall.name, args: msg.toolCall.args } }]
-                        });
-                        modelParts.push({
-                            role: 'tool',
-                            parts: [{ functionResponse: { name: msg.toolCall.name, response: msg.toolCall.result } }]
-                        });
-                    }
-                    // Add the final text response from the model
-                    if (msg.text) {
-                        modelParts.push({ role: 'model', parts: [{ text: msg.text }] });
-                    }
-                     // If the model part is just an image (from image generation), it will be handled by the result, but if it had text too, it gets added.
-                    return modelParts;
+                    if (msg.text) userParts.push({ text: msg.text });
+                    return userParts.length > 0 ? [{ role: 'user', parts: userParts }] : [];
                 }
+                
+                const modelTurns: Content[] = [];
+                if (msg.toolCall && !msg.toolCall.thinking && msg.toolCall.result) {
+                    modelTurns.push({
+                        role: 'model',
+                        parts: [{ functionCall: { name: msg.toolCall.name, args: msg.toolCall.args } }]
+                    });
+                    modelTurns.push({
+                        role: 'tool',
+                        parts: [{ functionResponse: { name: msg.toolCall.name, response: msg.toolCall.result } }]
+                    });
+                }
+                if (msg.text) {
+                    modelTurns.push({ role: 'model', parts: [{ text: msg.text }] });
+                }
+                return modelTurns;
             });
 
             const userParts: Part[] = [];
-            if (input.image) {
-                userParts.push({ inlineData: { mimeType: input.image.mimeType, data: input.image.base64 } });
-            }
+            if (input.image) userParts.push({ inlineData: { mimeType: input.image.mimeType, data: input.image.base64 } });
             if (input.audio) {
                 userParts.push({ inlineData: { mimeType: input.audio.mimeType, data: input.audio.base64 } });
                 userParts.push({ text: t('transcribeAndRespond') });
             }
-            if (input.text && !input.audio) {
-                userParts.push({ text: input.text });
-            }
+            if (input.text && !input.audio) userParts.push({ text: input.text });
 
             const contents: Content[] = [...history, { role: 'user', parts: userParts }];
 
-            const stream = geminiService.generateContentStream({
+            const config: any = {};
+            if (callbacks.isMapEnabled && callbacks.userLocation) {
+                config.tools = [{ googleMaps: {} }, ...tools];
+                config.toolConfig = {
+                    retrievalConfig: {
+                        latLng: {
+                            latitude: callbacks.userLocation.lat,
+                            longitude: callbacks.userLocation.lng
+                        }
+                    }
+                }
+            } else {
+                 config.tools = tools;
+            }
+
+            let stream = await ai.models.generateContentStream({
+                model: 'gemini-2.5-flash',
                 contents,
-                systemInstruction: botSettings.system_instruction,
-                abortSignal: abortController.current.signal
+                config: {
+                    ...config,
+                    systemInstruction: botSettings.system_instruction
+                }
             });
             
             let fullText = '';
-            let groundingChunks: any[] = [];
+            let finalResponse: GenerateContentResponse | undefined;
 
             for await (const chunk of stream) {
-                if ('functionCall' in chunk && chunk.functionCall) {
-                    const functionCall = chunk.functionCall;
-                    updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: functionCall.args, thinking: true } });
+                if (abortController.current?.signal.aborted) break;
+                
+                const functionCall = chunk.functionCalls?.[0];
 
-                    let functionResponsePart: Part;
+                if (functionCall) {
+                    updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: functionCall.args, thinking: true } });
                     
+                    let functionResponsePart: Part;
+
                     if (functionCall.name === 'generate_image') {
                         try {
-                            const imageResponse = await geminiService.generateImage(String(functionCall.args.prompt));
-                            const base64Image = imageResponse.images?.[0]?.image;
-                            if (base64Image) {
-                                const imageUrl = `data:image/png;base64,${base64Image}`;
-                                functionResponsePart = { functionResponse: { name: 'generate_image', response: { content: 'Image generated successfully.', imageUrl } } };
-                            } else {
-                                throw new Error('No image data in response');
-                            }
+                             const imageResponse = await ai.models.generateImages({
+                                model: 'imagen-4.0-generate-001',
+                                prompt: String(functionCall.args.prompt),
+                                config: { numberOfImages: 1 }
+                            });
+                             const base64ImageBytes = imageResponse.generatedImages?.[0]?.image.imageBytes;
+                             if(base64ImageBytes) {
+                                 const imageUrl = `data:image/png;base64,${base64ImageBytes}`;
+                                 functionResponsePart = { functionResponse: { name: 'generate_image', response: { content: 'Image generated successfully.', imageUrl } } };
+                             } else {
+                                 functionResponsePart = { functionResponse: { name: 'generate_image', response: { content: 'Failed to generate image.' } } };
+                             }
                         } catch (e) {
-                            console.error("Image generation tool error", e);
-                            functionResponsePart = { functionResponse: { name: 'generate_image', response: { content: 'An error occurred during image generation.' } } };
+                             console.error("Image generation tool error", e);
+                             functionResponsePart = { functionResponse: { name: 'generate_image', response: { content: 'An error occurred during image generation.' } } };
                         }
                     } else {
                         functionResponsePart = { functionResponse: { name: functionCall.name, response: { content: 'Unknown function' } } };
                     }
                     
-                    const newContents: Content[] = [...contents, { role: 'model', parts: [chunk] }, { role: 'tool', parts: [functionResponsePart] }];
+                    const newContents: Content[] = [...contents, { role: 'model', parts: [{ functionCall }] }, { role: 'tool', parts: [functionResponsePart] }];
                     
-                    const finalStream = geminiService.generateContentStream({ contents: newContents, systemInstruction: botSettings.system_instruction, abortSignal: abortController.current.signal });
-                    
-                    const toolResponsePayload = (functionResponsePart.functionResponse as any).response;
-                    updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: functionCall.args, result: toolResponsePayload, thinking: false }});
-                    if (toolResponsePayload.imageUrl) {
-                        updateBotMessage(botMessage.id, { imageUrl: toolResponsePayload.imageUrl });
-                    }
-                    
-                    for await (const finalChunk of finalStream) {
-                        if ('text' in finalChunk && finalChunk.text) {
-                            fullText += finalChunk.text;
+                    stream = await ai.models.generateContentStream({
+                        model: 'gemini-2.5-flash',
+                        contents: newContents,
+                        config: {
+                            ...config,
+                            systemInstruction: botSettings.system_instruction
                         }
-                        if ('groundingMetadata' in finalChunk && finalChunk.groundingMetadata?.groundingChunks) {
-                            groundingChunks = finalChunk.groundingMetadata.groundingChunks;
-                        }
-                        updateBotMessage(botMessage.id, { text: fullText });
-                    }
-                    break; 
+                    });
+                    
+                    const toolResponsePayload = functionResponsePart.functionResponse.response as { content: string, imageUrl?: string };
+                    updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: functionCall.args, result: toolResponsePayload, thinking: false } });
+                    if(toolResponsePayload.imageUrl) updateBotMessage(botMessage.id, { imageUrl: toolResponsePayload.imageUrl });
+
                 } else {
-                    if ('text' in chunk && chunk.text) {
-                        fullText += chunk.text;
-                    }
-                    if ('groundingMetadata' in chunk && chunk.groundingMetadata?.groundingChunks) {
-                        groundingChunks = chunk.groundingMetadata.groundingChunks;
-                    }
+                    fullText += chunk.text ?? '';
+                    finalResponse = chunk;
                     updateBotMessage(botMessage.id, { text: fullText });
                 }
             }
@@ -294,22 +331,23 @@ export const useAppLogic = (language: Language) => {
                 return;
             }
 
-            updateBotMessage(botMessage.id, { text: fullText, groundingChunks });
+            const botResponseText = fullText;
+            const groundingChunks = finalResponse?.candidates?.[0]?.groundingMetadata?.groundingChunks;
+            updateBotMessage(botMessage.id, { text: botResponseText, groundingChunks });
             
             if (isNewChat && activeChatId) {
-                generateConversationTitle(activeChatId, [userMessage, { ...botMessage, text: fullText }]);
+                generateConversationTitle(activeChatId, [userMessage, { ...botMessage, text: botResponseText }]);
             }
             
-            if (callbacks.isBotVoiceEnabled && fullText) {
+            if (callbacks.isBotVoiceEnabled && botResponseText) {
                 updateBotMessage(botMessage.id, { isSpeaking: true });
-                await callbacks.queueAndPlayTTS(fullText, botMessage.id);
+                await callbacks.queueAndPlayTTS(botResponseText, botMessage.id);
             }
 
         } catch (error: any) {
             if (error.name !== 'AbortError') {
                 console.error(t('errorMessage'), error);
-                const errorMessage = `Gemini API Error: ${error.status} - ${error.message}`;
-                updateBotMessage(botMessage.id, { text: `${t('errorMessage')}${errorMessage}` });
+                updateBotMessage(botMessage.id, { text: `${t('errorMessage')}${error.message}` });
             }
         } finally {
             setIsLoading(false);

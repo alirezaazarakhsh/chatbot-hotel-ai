@@ -1,9 +1,17 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --font-yekan-bakh: "Yekan Bakh", sans-serif;
+  --font-vazirmatn: "Vazirmatn", sans-serif;
+  --font-samim: "Samim", sans-serif;
+  --font-b-nazanin: "B Nazanin", sans-serif;
+}
+
 body {
-  font-family: var(--app-font, "Yekan Bakh"), sans-serif;
+  font-family: var(--app-font, var(--font-yekan-bakh));
 }
 
 /* Custom scrollbar for Webkit browsers (Chrome, Safari, etc.) */

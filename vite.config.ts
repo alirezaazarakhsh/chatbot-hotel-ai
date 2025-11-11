@@ -1,3 +1,4 @@
+
 import path from 'path';
 import { readFileSync } from 'fs';
 import { defineConfig, loadEnv } from 'vite';
@@ -17,23 +18,18 @@ export default defineConfig(({ mode }) => {
           target: 'https://cps.safarnameh24.com',
           changeOrigin: true,
           secure: false,
+          rewrite: (path) => path.replace(/^\/api/, ''),
           headers: {
             'Origin': 'https://cps.safarnameh24.com',
             'Referer': 'https://cps.safarnameh24.com/',
           },
         },
         '/gemini-api': {
-            target: 'https://generativelanguage.googleapis.com',
-            changeOrigin: true,
-            secure: false,
-            rewrite: (path) => {
-              const newPath = path.replace(/^\/gemini-api/, '');
-              // Use a dummy base URL because URL constructor requires a base
-              const url = new URL(`http://localhost${newPath}`);
-              url.searchParams.set('key', env.GEMINI_API_KEY);
-              return url.pathname + url.search;
-            },
-        },
+          target: `https://generativelanguage.googleapis.com`,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/gemini-api/, '') + `&key=${env.GEMINI_API_KEY}`,
+        }
       },
     },
 
@@ -55,11 +51,11 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env.APP_VERSION': JSON.stringify(packageJson.version),
     },
-    
+
     resolve: {
-        alias: {
-            '@': path.resolve(__dirname, './src'),
-        },
+      alias: {
+        '@': path.resolve('./src'),
+      },
     },
   };
 });

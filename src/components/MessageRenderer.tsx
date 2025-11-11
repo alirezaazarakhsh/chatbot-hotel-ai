@@ -1,7 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
-// FIX: Changed path aliases to relative paths to resolve module loading errors.
-import { Message, Language } from '../types';
-import { translations } from '../i18n/translations';
+import { Message, Language } from '@/types';
+import { translations } from '@/i18n/translations';
 import { CustomAudioPlayer } from './CustomAudioPlayer';
 import { MapPreview } from './MapPreview';
 import { Icons } from './Icons';
@@ -74,7 +74,7 @@ export const MessageRenderer: React.FC<{
 
     const parseTextToComponents = (inputText: string): React.ReactNode[] => {
         const cleanText = inputText.replace(/\(مکان:\s*([^)]+)\)/g, '').replace(/\(Location:\s*([^)]+)\)/g, '').trim();
-        const regex = /\/?https?:\/\/[^\s.,;!?()]+/g;
+        const regex = /\/?https?:\/\/[^\s.,;!?()]+/g; // Match URLs, optionally with a preceding slash
         let lastIndex = 0;
         const components: React.ReactNode[] = [];
         let match;
@@ -84,6 +84,7 @@ export const MessageRenderer: React.FC<{
                 components.push(cleanText.substring(lastIndex, match.index));
             }
             const fullMatch = match[0];
+            // Clean the URL for the href attribute by removing any leading slash.
             const href = fullMatch.startsWith('/') ? fullMatch.substring(1) : fullMatch;
 
             components.push(

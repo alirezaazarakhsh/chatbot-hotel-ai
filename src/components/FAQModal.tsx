@@ -1,8 +1,8 @@
+
 import React from 'react';
-// FIX: Changed path aliases to relative paths to resolve module loading errors.
-import { FAQ, Language } from '../types';
+import { FAQ, Language } from '@/types';
 import { Icons } from './Icons';
-import { translations, ChangelogEntry } from '../i18n/translations';
+import { translations, ChangelogEntry } from '@/i18n/translations';
 
 export const FAQModal: React.FC<{ isOpen: boolean; onClose: () => void; faqs: FAQ[]; t: (key: keyof typeof translations.en) => string; }> = ({ isOpen, onClose, faqs, t }) => {
     if (!isOpen) return null;

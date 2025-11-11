@@ -1,5 +1,5 @@
-// FIX: Changed path alias to relative path to resolve module loading error.
-import { HotelLink, FAQ, BotVoice, BotSettings } from '../types';
+
+import { HotelLink, FAQ, BotVoice, BotSettings } from '@/types';
 
 export const apiService = {
     fetchBotSettings: async (): Promise<Partial<BotSettings>> => {
