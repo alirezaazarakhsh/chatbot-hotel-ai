@@ -1,6 +1,5 @@
-
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+// Fix: Use relative paths for local module imports
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { DEFAULT_FONT } from './constants';
@@ -83,7 +82,8 @@ const App: React.FC = () => {
                 },
                 (error) => {
                     console.error(`Geolocation error: ${error.code} - ${error.message}`);
-                }
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         }
     }, [isMapEnabled]);
@@ -129,7 +129,7 @@ const App: React.FC = () => {
         }
     }, [isBotVoiceEnabled, botVoice, updateBotMessage]);
     
-    const onSendMessage = (text = userInput) => {
+    const onSendMessage = useCallback((text = userInput) => {
         if (!text.trim() && !imageToSend) return;
         handleSendMessage(
             { text, image: imageToSend },
@@ -137,7 +137,7 @@ const App: React.FC = () => {
         );
         setUserInput('');
         setImageToSend(null);
-    };
+    }, [userInput, imageToSend, handleSendMessage, isBotVoiceEnabled, botVoice, faqs, initAudioContext, queueAndPlayTTS, isMapEnabled, userLocation]);
 
     const handleMicClick = useCallback(async () => {
         initAudioContext();
@@ -251,7 +251,8 @@ const App: React.FC = () => {
                 } else {
                     alert(t('locationError'));
                 }
-            }
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     };
 
@@ -287,7 +288,7 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="h-screen bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden" style={{ fontFamily: appFont }}>
+        <div className="h-screen bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 overflow-hidden font-sans">
             {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden" />}
             <aside className={`flex flex-col bg-neutral-50 dark:bg-neutral-900 transition-transform duration-300 ease-in-out ${sidebarClass}`}>
                 <div className="p-4 flex-grow flex flex-col min-h-0">

@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-// FIX: Corrected the import by replacing 'FunctionCallPart' with 'FunctionCall' as it is not an exported member.
-import { GoogleGenAI, GenerateContentResponse, Part, Tool, FunctionDeclaration, Type, FunctionCall } from '@google/genai';
-import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language } from '../types';
+// Fix: Use relative paths for local module imports
+import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language, Part, Tool, FunctionCall } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 import { apiService } from '../api/apiService';
+import { geminiService } from '../api/geminiService';
 import { translations } from '../i18n/translations';
 
-// Helper to convert data URL to a Gemini Part
 const dataUrlToInlineData = (dataUrl: string): Part | null => {
     const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
     if (!match) return null;
@@ -81,7 +80,7 @@ export const useAppLogic = (language: Language) => {
             }
         };
         initializeApp();
-    }, [t]); 
+    }, [t, setConversations, setActiveChatId]); 
 
     const updateBotMessage = useCallback((messageId: string, updates: Partial<Message>) => {
         setConversations(prev => prev.map(c => c.id === activeChatId ? {
@@ -129,18 +128,11 @@ export const useAppLogic = (language: Language) => {
 
     const generateConversationTitle = useCallback(async (chatId: string, messages: Message[]) => {
         try {
-            if (!process.env.API_KEY) return;
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const conversationText = messages.map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text}`).join('\n');
             const prompt = `${t('generateTitlePrompt')}\n\n---\n${conversationText}\n---`;
             
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-            });
-            
-            // FIX: Added nullish coalescing operator to handle cases where response.text might be undefined, preventing a type error.
-            const title = (response.text ?? '').trim().replace(/"/g, '');
+            const response = await geminiService.generateContent(prompt);
+            const title = response.trim().replace(/"/g, '');
             
             if (title) {
                 setConversations(prev => prev.map(c => c.id === chatId ? { ...c, title } : c));
@@ -186,165 +178,81 @@ export const useAppLogic = (language: Language) => {
         setConversations(prev => prev.map(c => c.id === activeChatId ? updatedConversation : c));
 
         try {
-            if (!process.env.API_KEY) throw new Error("API Key is not configured.");
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-            const generateImageTool: FunctionDeclaration = {
-                name: 'generate_image',
-                description: 'Generates an image based on a user description. Only use this when the user explicitly asks to create, draw, or generate an image.',
-                parameters: {
-                    type: Type.OBJECT,
-                    properties: {
-                        prompt: {
-                            type: Type.STRING,
-                            description: 'A detailed, creative, and descriptive prompt for the image to be generated. This must be in English.'
-                        }
-                    },
-                    required: ['prompt']
+            const history = conversation.messages.flatMap((msg): { role: string; parts: Part[] }[] => {
+                const role = msg.sender === 'user' ? 'user' : 'model';
+                if (role === 'user') {
+                    const userParts: Part[] = [];
+                    if (msg.imageUrl) {
+                        const inlineDataPart = dataUrlToInlineData(msg.imageUrl);
+                        if (inlineDataPart) userParts.push(inlineDataPart);
+                    }
+                    if (msg.text) userParts.push({ text: msg.text });
+                    return userParts.length > 0 ? [{ role, parts: userParts }] : [];
                 }
-            };
-            const tools: Tool[] = [{ functionDeclarations: [generateImageTool] }];
-            
-            const history = conversation.messages.map(msg => {
-                const parts: Part[] = [];
-                if (msg.imageUrl) {
-                    const inlineDataPart = dataUrlToInlineData(msg.imageUrl);
-                    if (inlineDataPart) parts.push(inlineDataPart);
+                const modelTurns: { role: string; parts: Part[] }[] = [];
+                if (msg.toolCall && !msg.toolCall.thinking && msg.toolCall.result) {
+                    modelTurns.push({ role: 'model', parts: [{ functionCall: { name: msg.toolCall.name, args: msg.toolCall.args } }] });
+                    modelTurns.push({ role: 'tool', parts: [{ functionResponse: { name: msg.toolCall.name, response: msg.toolCall.result } }] });
                 }
-                if (msg.text) parts.push({ text: msg.text });
-                 if (msg.toolCall && !msg.toolCall.thinking) {
-                    parts.push({ functionResponse: { name: msg.toolCall.name, response: { content: msg.toolCall.args.result } } });
+                if (msg.text) {
+                    modelTurns.push({ role: 'model', parts: [{ text: msg.text }] });
                 }
-                return { role: msg.sender === 'user' ? 'user' : 'model', parts };
+                return modelTurns;
             });
 
             const userParts: Part[] = [];
-            if (input.image) {
-                userParts.push({ inlineData: { mimeType: input.image.mimeType, data: input.image.base64 } });
-            }
+            if (input.image) userParts.push({ inlineData: { mimeType: input.image.mimeType, data: input.image.base64 } });
             if (input.audio) {
                 userParts.push({ inlineData: { mimeType: input.audio.mimeType, data: input.audio.base64 } });
                 userParts.push({ text: t('transcribeAndRespond') });
             }
-            if (input.text && !input.audio) {
-                userParts.push({ text: input.text });
-            }
+            if (input.text && !input.audio) userParts.push({ text: input.text });
 
             const contents = [...history, { role: 'user', parts: userParts }];
-
-            const config: any = {};
-            if (callbacks.isMapEnabled && callbacks.userLocation) {
-                config.tools = [{ googleMaps: {} }, ...tools];
-                config.toolConfig = {
-                    retrievalConfig: {
-                        latLng: {
-                            latitude: callbacks.userLocation.lat,
-                            longitude: callbacks.userLocation.lng
-                        }
-                    }
-                }
-            } else {
-                 config.tools = tools;
-            }
-
-            let stream = await ai.models.generateContentStream({
-                model: 'gemini-2.5-flash',
-                contents,
-                config: {
-                    ...config,
-                    systemInstruction: botSettings.system_instruction
-                }
-            });
             
             let fullText = '';
-            let finalResponse: GenerateContentResponse | undefined;
+            
+            const stream = geminiService.generateContentStream(
+                contents,
+                botSettings.system_instruction,
+                callbacks.userLocation,
+                abortController.current.signal
+            );
 
             for await (const chunk of stream) {
-                if (abortController.current?.signal.aborted) break;
-
-                const functionCall = chunk.functionCalls?.[0];
-                if (functionCall) {
+                if(chunk.text) fullText += chunk.text;
+                
+                if (chunk.functionCall) {
+                    const functionCall = chunk.functionCall;
                     updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: functionCall.args, thinking: true } });
-                    
-                    let functionResponse: Part;
-
-                    if (functionCall.name === 'generate_image') {
-                        try {
-                             const imageResponse = await ai.models.generateImages({
-                                model: 'imagen-4.0-generate-001',
-// FIX: Explicitly convert the prompt argument to a string to prevent "Type 'unknown' is not assignable to type 'string'" error.
-                                prompt: String(functionCall.args.prompt),
-                                config: { numberOfImages: 1 }
-                            });
-                             const base64ImageBytes = imageResponse.generatedImages?.[0]?.image.imageBytes;
-                             if(base64ImageBytes) {
-                                 const imageUrl = `data:image/png;base64,${base64ImageBytes}`;
-                                 functionResponse = { functionResponse: { name: 'generate_image', response: { content: 'Image generated successfully.', imageUrl } } };
-                             } else {
-                                 functionResponse = { functionResponse: { name: 'generate_image', response: { content: 'Failed to generate image.' } } };
-                             }
-                        } catch (e) {
-                             console.error("Image generation tool error", e);
-                             functionResponse = { functionResponse: { name: 'generate_image', response: { content: 'An error occurred during image generation.' } } };
-                        }
-                    } else {
-                        // Handle other functions here if any
-                        functionResponse = { functionResponse: { name: functionCall.name, response: { content: 'Unknown function' } } };
-                    }
-                    
-                    // FIX: Wrapped the functionResponse Part in a Content object with role 'tool' to match the expected type for the 'contents' array.
-                    const newContents = [...contents, { role: 'model', parts: [{ functionCall }] }, { role: 'tool', parts: [functionResponse] }];
-
-                    // Send the function response back to the model
-                    stream = await ai.models.generateContentStream({
-                        model: 'gemini-2.5-flash',
-                        contents: newContents,
-                         config: {
-                            ...config,
-                            systemInstruction: botSettings.system_instruction
-                        }
-                    });
-                     // FIX: Cast the 'response' object to access its properties safely, resolving 'unknown' type errors.
-                    const toolResponsePayload = functionResponse.functionResponse.response as { content: string, imageUrl?: string };
-
-                     // Update the message to indicate we're no longer "thinking"
-                     updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: { result: toolResponsePayload.content }, thinking: false } });
-
-                     // If the image was generated, attach it to the message immediately
-                     if(toolResponsePayload.imageUrl){
-                        updateBotMessage(botMessage.id, { imageUrl: toolResponsePayload.imageUrl });
-                     }
-
-                } else {
-                    // FIX: Added nullish coalescing operator to safely handle streaming chunks that might not have a 'text' property.
-                    fullText += chunk.text ?? '';
-                    finalResponse = chunk;
-                    updateBotMessage(botMessage.id, { text: fullText });
+                    continue; 
                 }
-            }
 
+                if (chunk.imageUrl) {
+                    updateBotMessage(botMessage.id, { imageUrl: chunk.imageUrl, toolCall: undefined });
+                }
+
+                updateBotMessage(botMessage.id, { text: fullText, groundingChunks: chunk.groundingChunks });
+            }
+            
             if (abortController.current?.signal.aborted) {
                 updateBotMessage(botMessage.id, { isCancelled: true, text: fullText + `\n\n(${t('responseStopped')})` });
                 return;
             }
-
-            const botResponseText = fullText;
-            const groundingChunks = finalResponse?.candidates?.[0]?.groundingMetadata?.groundingChunks;
-            updateBotMessage(botMessage.id, { text: botResponseText, groundingChunks });
             
             if (isNewChat && activeChatId) {
-                generateConversationTitle(activeChatId, [userMessage, { ...botMessage, text: botResponseText }]);
+                generateConversationTitle(activeChatId, [userMessage, { ...botMessage, text: fullText }]);
             }
             
-            if (callbacks.isBotVoiceEnabled && botResponseText) {
+            if (callbacks.isBotVoiceEnabled && fullText) {
                 updateBotMessage(botMessage.id, { isSpeaking: true });
-                await callbacks.queueAndPlayTTS(botResponseText, botMessage.id);
+                await callbacks.queueAndPlayTTS(fullText, botMessage.id);
             }
 
         } catch (error: any) {
             if (error.name !== 'AbortError') {
                 console.error(t('errorMessage'), error);
-                updateBotMessage(botMessage.id, { text: `${t('errorMessage')}${error.message}` });
+                updateBotMessage(botMessage.id, { text: `${t('errorMessage')}${error.message || 'Unknown error'}` });
             }
         } finally {
             setIsLoading(false);
@@ -353,21 +261,10 @@ export const useAppLogic = (language: Language) => {
     }, [activeChatId, conversations, isLoading, botSettings.system_instruction, setConversations, updateBotMessage, t, generateConversationTitle]);
 
     const handleFeedback = useCallback((messageId: string, feedback: 'like' | 'dislike') => {
-        setConversations(prev => prev.map(c => {
-            if (c.id === activeChatId) {
-                return {
-                    ...c,
-                    messages: c.messages.map(m => {
-                        if (m.id === messageId) {
-                            const newFeedback = m.feedback === feedback ? null : feedback;
-                            return { ...m, feedback: newFeedback };
-                        }
-                        return m;
-                    })
-                };
-            }
-            return c;
-        }));
+        setConversations(prev => prev.map(c => c.id === activeChatId ? {
+            ...c,
+            messages: c.messages.map(m => m.id === messageId ? { ...m, feedback: m.feedback === feedback ? null : feedback } : m)
+        } : c));
     }, [activeChatId, setConversations]);
 
     return {
