@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+// Fix: Import Type enum for function calling schema.
+import { Type } from '@google/genai';
+import type { Content, Part, Tool, GroundingChunk } from '@google/genai';
 // Fix: Use relative paths for local module imports
-import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language, Part, Tool, FunctionCall, Content } from '../types';
+import { Conversation, Message, FAQ, BotSettings, HotelLink, BotVoice, Language } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 import { apiService } from '../api/apiService';
 import { geminiService } from '../api/geminiService';
@@ -131,11 +134,10 @@ export const useAppLogic = (language: Language) => {
             const conversationText = messages.map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text}`).join('\n');
             const prompt = `${t('generateTitlePrompt')}\n\n---\n${conversationText}\n---`;
             
-            const response = await geminiService.generateContent(prompt);
-            const title = response.trim().replace(/"/g, '');
+            const title = await geminiService.generateContent(prompt);
             
             if (title) {
-                setConversations(prev => prev.map(c => c.id === chatId ? { ...c, title } : c));
+                setConversations(prev => prev.map(c => c.id === chatId ? { ...c, title: title.trim().replace(/"/g, '') } : c));
             }
         } catch (error) {
             console.error("Error generating title:", error);
@@ -178,7 +180,6 @@ export const useAppLogic = (language: Language) => {
         setConversations(prev => prev.map(c => c.id === activeChatId ? updatedConversation : c));
 
         try {
-            // Fix: Refactored history creation from `flatMap` to `reduce` to prevent potential type inference issues.
             const history: Content[] = conversation.messages.reduce((acc: Content[], msg: Message) => {
                 if (msg.sender === 'user') {
                     const userParts: Part[] = [];
@@ -212,29 +213,53 @@ export const useAppLogic = (language: Language) => {
 
             const contents = [...history, { role: 'user', parts: userParts }];
             
+            const tools: Tool[] = [{
+                functionDeclarations: [{
+                    name: 'generate_image',
+                    description: 'Generates an image based on a user description.',
+                    // Fix: Use Type enum for function parameter types.
+                    parameters: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING } }, required: ['prompt'] }
+                }]
+            }];
+            if (callbacks.isMapEnabled && callbacks.userLocation) {
+                tools.push({ googleMaps: {} });
+            }
+            const toolConfig = (callbacks.isMapEnabled && callbacks.userLocation) ? {
+                retrievalConfig: {
+                    latLng: { latitude: callbacks.userLocation.lat, longitude: callbacks.userLocation.lng }
+                }
+            } : undefined;
+
             let fullText = '';
             
             const stream = geminiService.generateContentStream(
-                contents,
-                botSettings.system_instruction,
-                callbacks.userLocation,
-                abortController.current.signal
+                contents, botSettings.system_instruction, tools, toolConfig
             );
 
             for await (const chunk of stream) {
-                if(chunk.text) fullText += chunk.text;
+                if (abortController.current?.signal.aborted) break;
+
+                if (chunk.text) {
+                    fullText += chunk.text;
+                }
                 
-                if (chunk.functionCall) {
-                    const functionCall = chunk.functionCall;
-                    updateBotMessage(botMessage.id, { toolCall: { name: functionCall.name, args: functionCall.args, thinking: true } });
-                    continue; 
+                const functionCalls = chunk.functionCalls;
+                if (functionCalls && functionCalls.length > 0) {
+                    for (const fc of functionCalls) {
+                        if (fc.name === 'generate_image' && fc.args.prompt) {
+                            updateBotMessage(botMessage.id, { toolCall: { name: fc.name, args: fc.args, thinking: true } });
+                            const imageUrl = await geminiService.generateImage(String(fc.args.prompt));
+                            if (imageUrl) {
+                                updateBotMessage(botMessage.id, { imageUrl, toolCall: undefined });
+                            } else {
+                                updateBotMessage(botMessage.id, { text: t('imageGenerationError'), toolCall: undefined });
+                            }
+                        }
+                    }
                 }
 
-                if (chunk.imageUrl) {
-                    updateBotMessage(botMessage.id, { imageUrl: chunk.imageUrl, toolCall: undefined });
-                }
-
-                updateBotMessage(botMessage.id, { text: fullText, groundingChunks: chunk.groundingChunks });
+                const groundingChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks as GroundingChunk[] | undefined;
+                updateBotMessage(botMessage.id, { text: fullText, groundingChunks: groundingChunks });
             }
             
             if (abortController.current?.signal.aborted) {

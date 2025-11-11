@@ -1,3 +1,4 @@
+
 import path from 'path';
 import { readFileSync } from 'fs';
 import { defineConfig, loadEnv } from 'vite';
@@ -19,12 +20,6 @@ export default defineConfig(({ mode }) => {
           secure: false,
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
-        '/gemini-api': {
-            target: 'https://generativelanguage.googleapis.com',
-            changeOrigin: true,
-            secure: false,
-            rewrite: (path) => `${path.replace('/gemini-api', '')}&key=${env.GEMINI_API_KEY}`,
-        }
       },
     },
 
@@ -45,11 +40,13 @@ export default defineConfig(({ mode }) => {
 
     define: {
       'process.env.APP_VERSION': JSON.stringify(packageJson.version),
+      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
 
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
+        // Fix: In an ES module, __dirname is not available. Use process.cwd() to get the project root.
+        '@': path.resolve(process.cwd(), 'src'),
       },
     },
   };
