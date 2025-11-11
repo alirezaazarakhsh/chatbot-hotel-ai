@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+// FIX: Changed path aliases to relative paths to resolve module loading errors.
 import App from './App';
 import './styles/index.css';
 import './styles/fonts.css';

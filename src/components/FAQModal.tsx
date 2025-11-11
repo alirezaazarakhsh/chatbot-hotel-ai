@@ -1,4 +1,5 @@
 import React from 'react';
+// FIX: Changed path aliases to relative paths to resolve module loading errors.
 import { FAQ, Language } from '../types';
 import { Icons } from './Icons';
 import { translations, ChangelogEntry } from '../i18n/translations';

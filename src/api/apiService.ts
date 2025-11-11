@@ -1,3 +1,4 @@
+// FIX: Changed path alias to relative path to resolve module loading error.
 import { HotelLink, FAQ, BotVoice, BotSettings } from '../types';
 
 export const apiService = {

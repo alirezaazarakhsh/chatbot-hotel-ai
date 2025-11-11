@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// FIX: Changed path aliases to relative paths to resolve module loading errors.
 import { Message, Language } from '../types';
 import { translations } from '../i18n/translations';
 import { CustomAudioPlayer } from './CustomAudioPlayer';

@@ -1,3 +1,4 @@
+// FIX: Changed path alias to relative path to resolve module loading error.
 import { Content, Tool, FunctionDeclaration, Part } from '../types';
 
 const API_BASE_URL = '/gemini-api/v1beta/models';

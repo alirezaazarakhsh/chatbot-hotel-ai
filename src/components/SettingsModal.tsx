@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+// FIX: Changed path aliases to relative paths to resolve module loading errors.
 import { BotVoice, Language, Theme } from '../types';
 import { translations } from '../i18n/translations';
 import { AVAILABLE_FONTS } from '../constants';

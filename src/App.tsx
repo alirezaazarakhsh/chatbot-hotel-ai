@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+// FIX: Changed path aliases to relative paths to resolve module loading errors.
 import { useAppLogic } from './hooks/useAppLogic';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { DEFAULT_FONT } from './constants';

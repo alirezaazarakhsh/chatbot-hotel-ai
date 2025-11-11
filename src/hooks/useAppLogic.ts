@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+// FIX: Changed path aliases to relative paths to resolve module loading errors.
 import { Conversation, Message, FAQ, BotSettings, BotVoice, Language, Part, Content } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 import { apiService } from '../api/apiService';
@@ -268,8 +269,8 @@ export const useAppLogic = (language: Language) => {
                     }
                     
                     for await (const finalChunk of finalStream) {
-                        if ('text' in finalChunk) {
-                            fullText += finalChunk.text || '';
+                        if ('text' in finalChunk && finalChunk.text) {
+                            fullText += finalChunk.text;
                         }
                         if ('groundingMetadata' in finalChunk && finalChunk.groundingMetadata?.groundingChunks) {
                             groundingChunks = finalChunk.groundingMetadata.groundingChunks;
@@ -278,8 +279,8 @@ export const useAppLogic = (language: Language) => {
                     }
                     break; 
                 } else {
-                    if ('text' in chunk) {
-                        fullText += chunk.text || '';
+                    if ('text' in chunk && chunk.text) {
+                        fullText += chunk.text;
                     }
                     if ('groundingMetadata' in chunk && chunk.groundingMetadata?.groundingChunks) {
                         groundingChunks = chunk.groundingMetadata.groundingChunks;
