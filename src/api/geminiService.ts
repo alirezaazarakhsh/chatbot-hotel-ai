@@ -78,9 +78,10 @@ export const geminiService = {
                     parameters: { type: 'OBJECT', properties: { prompt: { type: 'STRING' } } }
                 }]
             }],
-            tool_config: userLocation ? {
-                retrieval_config: {
-                    lat_lng: { latitude: userLocation.lat, longitude: userLocation.lng }
+            // Fix: Use camelCase for toolConfig and its properties to match the Gemini REST API spec.
+            toolConfig: userLocation ? {
+                retrievalConfig: {
+                    latLng: { latitude: userLocation.lat, longitude: userLocation.lng }
                 }
             } : undefined
         };
@@ -109,11 +110,13 @@ export const geminiService = {
             const response = await fetch(IMAGE_API_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, number_of_images: 1 }),
+                // Fix: Use camelCase for numberOfImages to match the Imagen REST API spec.
+                body: JSON.stringify({ prompt, numberOfImages: 1 }),
             });
             if (!response.ok) throw new Error('Image generation failed');
             const data = await response.json();
-            const base64Image = data.generated_images?.[0]?.image?.image_bytes;
+            // Fix: Use camelCase for generatedImages and imageBytes to match the Imagen REST API spec.
+            const base64Image = data.generatedImages?.[0]?.image?.imageBytes;
             return base64Image ? `data:image/png;base64,${base64Image}` : undefined;
         } catch (error) {
             console.error("Image generation service error:", error);

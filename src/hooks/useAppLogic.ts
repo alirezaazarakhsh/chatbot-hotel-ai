@@ -178,29 +178,29 @@ export const useAppLogic = (language: Language) => {
         setConversations(prev => prev.map(c => c.id === activeChatId ? updatedConversation : c));
 
         try {
-            // Fix: Use the correct `Content` type for the conversation history array.
-            const history = conversation.messages.flatMap((msg): Content[] => {
-                const role = msg.sender === 'user' ? 'user' : 'model';
-                if (role === 'user') {
+            // Fix: Refactored history creation from `flatMap` to `reduce` to prevent potential type inference issues.
+            const history: Content[] = conversation.messages.reduce((acc: Content[], msg: Message) => {
+                if (msg.sender === 'user') {
                     const userParts: Part[] = [];
                     if (msg.imageUrl) {
                         const inlineDataPart = dataUrlToInlineData(msg.imageUrl);
                         if (inlineDataPart) userParts.push(inlineDataPart);
                     }
                     if (msg.text) userParts.push({ text: msg.text });
-                    return userParts.length > 0 ? [{ role, parts: userParts }] : [];
+                    if (userParts.length > 0) {
+                        acc.push({ role: 'user', parts: userParts });
+                    }
+                } else { // sender === 'bot'
+                    if (msg.toolCall && !msg.toolCall.thinking && msg.toolCall.result) {
+                        acc.push({ role: 'model', parts: [{ functionCall: { name: msg.toolCall.name, args: msg.toolCall.args } }] });
+                        acc.push({ role: 'tool', parts: [{ functionResponse: { name: msg.toolCall.name, response: msg.toolCall.result } }] });
+                    }
+                    if (msg.text) {
+                        acc.push({ role: 'model', parts: [{ text: msg.text }] });
+                    }
                 }
-                // Fix: Use the correct `Content` type for the model turns array.
-                const modelTurns: Content[] = [];
-                if (msg.toolCall && !msg.toolCall.thinking && msg.toolCall.result) {
-                    modelTurns.push({ role: 'model', parts: [{ functionCall: { name: msg.toolCall.name, args: msg.toolCall.args } }] });
-                    modelTurns.push({ role: 'tool', parts: [{ functionResponse: { name: msg.toolCall.name, response: msg.toolCall.result } }] });
-                }
-                if (msg.text) {
-                    modelTurns.push({ role: 'model', parts: [{ text: msg.text }] });
-                }
-                return modelTurns;
-            });
+                return acc;
+            }, []);
 
             const userParts: Part[] = [];
             if (input.image) userParts.push({ inlineData: { mimeType: input.image.mimeType, data: input.image.base64 } });
