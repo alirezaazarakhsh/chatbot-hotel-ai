@@ -1,4 +1,3 @@
-
 import path from 'path';
 import { readFileSync } from 'fs';
 import { defineConfig, loadEnv } from 'vite';
@@ -18,7 +17,16 @@ export default defineConfig(({ mode }) => {
           target: 'https://cps.safarnameh24.com',
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path.replace(/^\/api/, ''),
+          headers: {
+            'Origin': 'https://cps.safarnameh24.com',
+            'Referer': 'https://cps.safarnameh24.com/',
+          },
+        },
+        '/gemini-api': {
+          target: 'https://generativelanguage.googleapis.com',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/gemini-api/, ''),
         },
       },
     },
@@ -39,14 +47,13 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
 
     define: {
-      'process.env.APP_VERSION': JSON.stringify(packageJson.version),
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'process.env.APP_VERSION': JSON.stringify(packageJson.version),
     },
 
     resolve: {
       alias: {
-        // Fix: In an ES module, __dirname is not available. Use process.cwd() to get the project root.
-        '@': path.resolve(process.cwd(), 'src'),
+        '@': path.resolve('./src'),
       },
     },
   };
